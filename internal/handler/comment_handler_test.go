@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/confuzeus/replyforge/internal/config"
 	"github.com/confuzeus/replyforge/internal/model"
@@ -307,4 +308,90 @@ func TestGet_InvalidID(t *testing.T) {
 
 func formatID(id int64) string {
 	return strconv.FormatInt(id, 10)
+}
+
+func TestList_WithSortAscending(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandler(t, db, true)
+
+	seedApprovedComment(t, db, "post-1", "Alice", "First")
+	time.Sleep(10 * time.Millisecond)
+	seedApprovedComment(t, db, "post-1", "Bob", "Second")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/comments?sort=created_at", nil)
+	rec := httptest.NewRecorder()
+
+	handler.List(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp model.ListCommentsResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	require.Len(t, resp.Data, 2)
+	assert.True(t, resp.Data[0].CreatedAt.Before(resp.Data[1].CreatedAt) ||
+		resp.Data[0].CreatedAt.Equal(resp.Data[1].CreatedAt))
+}
+
+func TestList_QueryParamsEdgeCases(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandler(t, db, true)
+
+	seedApprovedComment(t, db, "post-1", "Alice", "Comment")
+
+	tests := []struct {
+		name        string
+		queryStr    string
+		wantStatus  int
+		wantPage    int
+		wantPerPage int
+	}{
+		{"defaults", "", http.StatusOK, 1, 20},
+		{"per_page over max clamped", "per_page=200", http.StatusOK, 1, 100},
+		{"invalid page is ignored", "page=abc", http.StatusOK, 1, 20},
+		{"negative page defaults", "page=-1", http.StatusOK, 1, 20},
+		{"zero page defaults", "page=0", http.StatusOK, 1, 20},
+		{"zero per_page defaults", "per_page=0", http.StatusOK, 1, 20},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/comments?"+tt.queryStr, nil)
+			rec := httptest.NewRecorder()
+
+			handler.List(rec, req)
+
+			assert.Equal(t, tt.wantStatus, rec.Code)
+
+			var resp model.ListCommentsResponse
+			require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+			assert.Equal(t, tt.wantPage, resp.Pagination.Page)
+			assert.Equal(t, tt.wantPerPage, resp.Pagination.PerPage)
+		})
+	}
+}
+
+func TestGet_NegativeID(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandler(t, db, true)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/comments/-1", nil)
+	req.SetPathValue("id", "-1")
+	rec := httptest.NewRecorder()
+
+	handler.Get(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestGet_ZeroID(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandler(t, db, true)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/comments/0", nil)
+	req.SetPathValue("id", "0")
+	rec := httptest.NewRecorder()
+
+	handler.Get(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
 }

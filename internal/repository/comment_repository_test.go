@@ -299,3 +299,109 @@ func TestFindApproved_EmptyResult(t *testing.T) {
 	assert.Empty(t, comments)
 	assert.NotNil(t, comments)
 }
+
+func TestFindApproved_EdgeCaseParams(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	for i := 0; i < 5; i++ {
+		seedComment(t, db, &Comment{
+			PostID:            "post-1",
+			AuthorName:        "User",
+			Body:              "Comment",
+			IPAddress:         "127.0.0.1",
+			UserAgent:         "test",
+			Approved:          true,
+			TurnstileVerified: true,
+		})
+	}
+
+	tests := []struct {
+		name      string
+		params    QueryParams
+		wantTotal int
+		wantLen   int
+	}{
+		{"page zero treated as offset 0", QueryParams{Page: 0, PerPage: 10}, 5, 5},
+		{"per page zero returns no rows", QueryParams{Page: 1, PerPage: 0}, 5, 0},
+		{"negative page treated as offset 0", QueryParams{Page: -1, PerPage: 10}, 5, 5},
+		{"large negative offset treated as 0", QueryParams{Page: -100, PerPage: 10}, 5, 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			comments, total, err := repo.FindApproved(context.Background(), tt.params)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantTotal, total)
+			assert.Len(t, comments, tt.wantLen)
+		})
+	}
+}
+
+func TestInsert_ContextCanceled(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := repo.Insert(ctx, &Comment{
+		PostID:    "post-1",
+		AuthorName: "Alice",
+		Body:      "Hello",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test",
+	})
+	assert.Error(t, err)
+}
+
+func TestFindApproved_ContextCanceled(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	seedComment(t, db, &Comment{
+		PostID:            "post-1",
+		AuthorName:        "User",
+		Body:              "Comment",
+		IPAddress:         "127.0.0.1",
+		UserAgent:         "test",
+		Approved:          true,
+		TurnstileVerified: true,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, err := repo.FindApproved(ctx, QueryParams{Page: 1, PerPage: 10})
+	assert.Error(t, err)
+}
+
+func TestFindByID_ContextCanceled(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := repo.FindByID(ctx, 1)
+	assert.Error(t, err)
+}
+
+func TestUpdateDisplayID_ContextCanceled(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	seedComment(t, db, &Comment{
+		PostID:    "post-1",
+		AuthorName: "User",
+		Body:      "Comment",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test",
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := repo.UpdateDisplayID(ctx, 1, "abc123")
+	assert.Error(t, err)
+}

@@ -324,3 +324,129 @@ func TestGetByID_NotFound(t *testing.T) {
 	assert.True(t, errors.As(err, &svcErr))
 	assert.Equal(t, "NOT_FOUND", svcErr.Code)
 }
+
+func TestCreate_WhitespaceOnlyFields(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	resp, err := svc.Create(context.Background(), CreateInput{
+		PostID:         "post-1",
+		AuthorName:     "   \t\n   ",
+		Body:           "Some valid body content",
+		TurnstileToken: "valid-token",
+		ClientIP:       "127.0.0.1",
+		UserAgent:      "test-agent",
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, resp.AuthorName)
+	assert.Equal(t, "Some valid body content", resp.Body)
+}
+
+func TestCreate_WhitespaceOnlyBody(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	resp, err := svc.Create(context.Background(), CreateInput{
+		PostID:         "post-1",
+		AuthorName:     "Alice",
+		Body:           "\t\n  \t  \n",
+		TurnstileToken: "valid-token",
+		ClientIP:       "127.0.0.1",
+		UserAgent:      "test-agent",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "Alice", resp.AuthorName)
+	assert.Empty(t, resp.Body)
+}
+
+func TestList_EdgeCaseParams(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	for i := 0; i < 5; i++ {
+		seedApprovedComment(t, db, "post-1", "Alice", "Comment")
+	}
+
+	tests := []struct {
+		name        string
+		params      ListParams
+		wantPage    int
+		wantPerPage int
+		wantCount   int
+	}{
+		{"zero page defaults to 1", ListParams{Page: 0, PerPage: 10}, 1, 10, 5},
+		{"negative page defaults to 1", ListParams{Page: -5, PerPage: 10}, 1, 10, 5},
+		{"per_page over 100 clamped", ListParams{Page: 1, PerPage: 200}, 1, 100, 5},
+		{"per_page zero defaults to 20", ListParams{Page: 1, PerPage: 0}, 1, 20, 5},
+		{"per_page negative defaults to 20", ListParams{Page: 1, PerPage: -1}, 1, 20, 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := svc.List(context.Background(), tt.params)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantPage, result.Page)
+			assert.Equal(t, tt.wantPerPage, result.PerPage)
+			assert.Equal(t, tt.wantCount, result.Total)
+		})
+	}
+}
+
+func TestList_InvalidSortIgnored(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	seedApprovedComment(t, db, "post-1", "Alice", "First")
+	seedApprovedComment(t, db, "post-1", "Bob", "Second")
+
+	result, err := svc.List(context.Background(), ListParams{Sort: "bogus_sort_value"})
+
+	require.NoError(t, err)
+	assert.Len(t, result.Comments, 2)
+}
+
+func TestServiceError_ErrorFormatting(t *testing.T) {
+	tests := []struct {
+		name      string
+		svcErr    *ServiceError
+		contained []string
+	}{
+		{
+			name: "with wrapped error",
+			svcErr: &ServiceError{Code: "NOT_FOUND", Message: "Comment not found", Err: assert.AnError},
+			contained: []string{"NOT_FOUND", "Comment not found", assert.AnError.Error()},
+		},
+		{
+			name:   "without wrapped error",
+			svcErr: &ServiceError{Code: "VALIDATION_ERROR", Message: "Invalid request"},
+			contained: []string{"VALIDATION_ERROR", "Invalid request"},
+		},
+		{
+			name:   "empty code",
+			svcErr: &ServiceError{Code: "", Message: "Something happened"},
+			contained: []string{"Something happened"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errMsg := tt.svcErr.Error()
+			for _, c := range tt.contained {
+				assert.Contains(t, errMsg, c)
+			}
+		})
+	}
+}
+
+func TestServiceError_Unwrap(t *testing.T) {
+	baseErr := errors.New("dial tcp: connection refused")
+	svcErr := &ServiceError{Code: "INTERNAL_ERROR", Message: "DB error", Err: baseErr}
+
+	assert.True(t, errors.Is(svcErr, baseErr))
+
+	var unwrapped *ServiceError
+	assert.True(t, errors.As(svcErr, &unwrapped))
+	assert.Equal(t, "INTERNAL_ERROR", unwrapped.Code)
+}

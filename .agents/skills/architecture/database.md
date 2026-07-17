@@ -2,13 +2,24 @@
 
 ## Database Configuration
 
+PRAGMAs are split by application scope:
+
+### Persistent (set once, survive across connections)
+Applied via migration `000_prerequisites.sql`:
 ```sql
--- SQLite with WAL mode (mandatory for concurrent access)
-PRAGMA journal_mode=WAL;
-PRAGMA busy_timeout=5000;
-PRAGMA foreign_keys=ON;
 PRAGMA synchronous=NORMAL;
 ```
+
+### Connection-level (applied on every connection open)
+Applied via DSN query parameters in `main.go`:
+```text
+?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on
+```
+
+- `journal_mode=WAL` — write-ahead logging for concurrent reads + writes
+- `busy_timeout=5000` — wait up to 5s before returning SQLITE_BUSY
+- `foreign_keys=ON` — enforce foreign key constraints
+- `synchronous=NORMAL` — balance durability vs performance (safe with WAL)
 
 ### Schema
 

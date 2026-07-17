@@ -33,7 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := sql.Open("sqlite3", cfg.DatabasePath)
+	db, err := sql.Open("sqlite3", cfg.DatabasePath+"?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on")
 	if err != nil {
 		logger.Error("failed to open database", "error", err)
 		os.Exit(1)

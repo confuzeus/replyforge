@@ -9,15 +9,6 @@ import (
 )
 
 func RunMigrations(db *sql.DB, migrationsFS embed.FS) error {
-	if _, err := db.Exec(`
-		PRAGMA journal_mode=WAL;
-		PRAGMA busy_timeout=5000;
-		PRAGMA foreign_keys=ON;
-		PRAGMA synchronous=NORMAL;
-	`); err != nil {
-		return fmt.Errorf("applying PRAGMAs: %w", err)
-	}
-
 	files, err := fs.ReadDir(migrationsFS, ".")
 	if err != nil {
 		return fmt.Errorf("reading migrations directory: %w", err)

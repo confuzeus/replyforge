@@ -25,7 +25,6 @@ func TestLoadDefaults(t *testing.T) {
 		{"Port", cfg.Port, "8080"},
 		{"DatabasePath", cfg.DatabasePath, "data/comments.db"},
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
-		{"HashIDSalt", cfg.HashIDSalt, "default-salt"},
 		{"AllowedOrigins", cfg.AllowedOrigins, []string{"*"}},
 		{"RateLimitRPM", cfg.RateLimitRPM, 10},
 		{"RateLimitBurst", cfg.RateLimitBurst, 15},
@@ -60,7 +59,6 @@ func TestLoadFromEnv(t *testing.T) {
 	os.Setenv("DATABASE_PATH", "/tmp/test.db")
 	os.Setenv("LOG_LEVEL", "debug")
 	os.Setenv("TURNSTILE_SECRET_KEY", "test-secret")
-	os.Setenv("HASHID_SALT", "my-salt")
 	os.Setenv("ALLOWED_ORIGINS", "https://foo.com,https://bar.com")
 	os.Setenv("RATE_LIMIT_RPM", "30")
 	os.Setenv("RATE_LIMIT_BURST", "5")
@@ -81,9 +79,6 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if cfg.TurnstileSecretKey != "test-secret" {
 		t.Errorf("TurnstileSecretKey = %q, want %q", cfg.TurnstileSecretKey, "test-secret")
-	}
-	if cfg.HashIDSalt != "my-salt" {
-		t.Errorf("HashIDSalt = %q, want %q", cfg.HashIDSalt, "my-salt")
 	}
 	if len(cfg.AllowedOrigins) != 2 || cfg.AllowedOrigins[0] != "https://foo.com" || cfg.AllowedOrigins[1] != "https://bar.com" {
 		t.Errorf("AllowedOrigins = %v, want [https://foo.com https://bar.com]", cfg.AllowedOrigins)

@@ -35,7 +35,7 @@ The system uses two identifiers for each comment, serving different purposes:
 | Identifier   | Type                    | Format   | Purpose                                     | Exposed                |
 | ------------ | ----------------------- | -------- | ------------------------------------------- | ---------------------- |
 | `id`         | Integer, auto-increment | `42`     | Primary key, database performance, API URLs | Yes (responses + URLs) |
-| `display_id` | String, HashID-derived  | `xj3k9p` | User-facing reference, frontend display     | Yes (responses only)   |
+| `display_id` | String, Sqids-derived   | `xj3k9p` | User-facing reference, frontend display     | Yes (responses only)   |
 
 **Design Rationale:**
 

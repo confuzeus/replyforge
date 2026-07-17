@@ -12,7 +12,10 @@ import (
 	"time"
 
 	"github.com/confuzeus/replyforge/internal/config"
+	"github.com/confuzeus/replyforge/internal/model"
 	"github.com/confuzeus/replyforge/internal/repository"
+	"github.com/confuzeus/replyforge/internal/sanitizer"
+	"github.com/confuzeus/replyforge/internal/service"
 	"github.com/confuzeus/replyforge/migrations"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -24,10 +27,6 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: cfg.LogLevel,
 	}))
-
-	if cfg.HashIDSalt == "default-salt" {
-		logger.Warn("using default HASHID_SALT; set HASHID_SALT env var for production use")
-	}
 
 	if err := cfg.Validate(); err != nil {
 		logger.Error("invalid configuration", "error", err)
@@ -47,7 +46,20 @@ func main() {
 	}
 
 	repo := repository.NewCommentRepository(db)
-	_ = repo // placeholder until service layer is wired up
+
+	displayIDGen := model.NewDisplayIDGenerator()
+	turnstileVerifier := service.NewTurnstileVerifier(cfg.TurnstileSecretKey)
+	inputSanitizer := sanitizer.NewSanitizer()
+
+	commentService := service.NewCommentService(service.ServiceDependencies{
+		Repository:   repo,
+		DisplayIDGen: displayIDGen,
+		Turnstile:    turnstileVerifier,
+		Sanitizer:    inputSanitizer,
+		Logger:       logger,
+	})
+
+	_ = commentService // placeholder until handler is wired
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {

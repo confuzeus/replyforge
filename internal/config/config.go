@@ -16,7 +16,6 @@ type Config struct {
 	DatabasePath       string
 	LogLevel           slog.Level
 	TurnstileSecretKey string
-	HashIDSalt         string
 	AllowedOrigins     []string
 	RateLimitRPM       int
 	RateLimitBurst     int
@@ -33,7 +32,6 @@ func Load() *Config {
 		DatabasePath:       envOrDefault("DATABASE_PATH", "data/comments.db"),
 		LogLevel:           parseLogLevel(envOrDefault("LOG_LEVEL", "info")),
 		TurnstileSecretKey: os.Getenv("TURNSTILE_SECRET_KEY"),
-		HashIDSalt:         envOrDefault("HASHID_SALT", "default-salt"),
 		AllowedOrigins:     parseAllowedOrigins(envOrDefault("ALLOWED_ORIGINS", "*")),
 		RateLimitRPM:       envOrDefaultInt("RATE_LIMIT_RPM", 10),
 		RateLimitBurst:     envOrDefaultInt("RATE_LIMIT_BURST", 15),

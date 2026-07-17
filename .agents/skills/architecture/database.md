@@ -47,7 +47,7 @@ ON comments(post_id, approved, created_at DESC);
 **Schema Notes:**
 
 - `id` is the internal auto-incrementing primary key, used for all database operations
-- `display_id` is generated from the `id` value using HashIDs with a secret salt
+- `display_id` is generated from the `id` value using Sqids
 - `approved` defaults to 0 (false) - all comments require moderation or approval logic
 - `ip_address` and `user_agent` are stored for abuse prevention, never returned in API responses
 - `turnstile_verified` tracks whether Cloudflare verification passed
@@ -60,51 +60,39 @@ package model
 
 import (
     "fmt"
-    "os"
-    "github.com/speps/go-hashids/v2"
+    "github.com/sqids/sqids-go"
 )
 
-type DisplayID string
-
 type DisplayIDGenerator struct {
-    salt     string
-    minLength int
+    s *sqids.Sqids
 }
 
 func NewDisplayIDGenerator() *DisplayIDGenerator {
-    return &DisplayIDGenerator{
-        salt:      os.Getenv("HASHID_SALT"),
-        minLength: 6,
+    s, err := sqids.New(sqids.Options{
+        MinLength: 6,
+    })
+    if err != nil {
+        panic(fmt.Sprintf("failed to create sqids instance: %v", err))
     }
+    return &DisplayIDGenerator{s: s}
 }
 
-func (g *DisplayIDGenerator) Generate(id int64) (DisplayID, error) {
-    hd := hashids.NewData()
-    hd.Salt = g.salt
-    hd.MinLength = g.minLength
-    hd.Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
-
-    h, err := hashids.NewWithData(hd)
+func (g *DisplayIDGenerator) Generate(id int64) (string, error) {
+    encoded, err := g.s.Encode([]uint64{uint64(id)})
     if err != nil {
-        return "", fmt.Errorf("failed to create hashids: %w", err)
+        return "", fmt.Errorf("encoding display id: %w", err)
     }
-
-    encoded, err := h.Encode([]int{int(id)})
-    if err != nil {
-        return "", fmt.Errorf("failed to encode display id: %w", err)
-    }
-
-    return DisplayID(encoded), nil
+    return encoded, nil
 }
 ```
 
 **Generation Strategy:**
 
-- Generated deterministically from the integer `id` using HashIDs
-- Salt must be kept secret (environment variable) to prevent reverse-engineering
-- 6-character minimum length, lowercase alphanumeric only
+- Generated non-deterministically from the integer `id` using Sqids
+- No salt needed — Sqids natively produces non-consecutive randomized IDs
+- 6-character minimum length, alphanumeric
 - Generated after database insert since it requires the auto-incremented ID
-- Performed within the same transaction as the insert
+- Performed under the same mutex as the insert
 
 ### Data Flow
 

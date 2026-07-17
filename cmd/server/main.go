@@ -72,15 +72,19 @@ func main() {
 	corsCfg := middleware.NewCORSConfig(cfg.AllowedOrigins)
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM, cfg.RateLimitBurst)
 
-	mux.Handle("POST /api/v1/comments", rateLimiter.Middleware(http.HandlerFunc(commentHandler.Create)))
-
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	wrappedHandler := corsCfg.Middleware(mux)
+	deps := middlewareDeps{
+		Logger:     logger,
+		CORSConfig: corsCfg,
+		RateLimiter: rateLimiter,
+	}
+
+	wrappedHandler := setupMiddleware(mux, deps)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -114,4 +118,18 @@ func main() {
 	rateLimiter.Stop()
 
 	logger.Info("server stopped")
+}
+
+type middlewareDeps struct {
+	Logger      *slog.Logger
+	CORSConfig  *middleware.CORSConfig
+	RateLimiter *middleware.RateLimiter
+}
+
+func setupMiddleware(handler http.Handler, deps middlewareDeps) http.Handler {
+	handler = middleware.Recovery(deps.Logger)(handler)
+	handler = middleware.Logging(deps.Logger)(handler)
+	handler = middleware.CORS(deps.CORSConfig)(handler)
+	handler = middleware.RateLimit(deps.RateLimiter)(handler)
+	return handler
 }

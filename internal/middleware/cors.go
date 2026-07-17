@@ -43,6 +43,10 @@ func (c *CORSConfig) Middleware(next http.Handler) http.Handler {
 	})
 }
 
+func CORS(cfg *CORSConfig) func(http.Handler) http.Handler {
+	return cfg.Middleware
+}
+
 func (c *CORSConfig) isAllowed(origin string) bool {
 	for _, allowed := range c.allowedOrigins {
 		if allowed == "*" || allowed == origin {

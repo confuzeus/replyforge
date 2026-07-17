@@ -36,6 +36,10 @@ func NewRateLimiter(requestsPerMinute, burst int) *RateLimiter {
 
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/comments" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		ip := ExtractClientIP(r)
 		limiter := rl.getVisitor(ip)
 
@@ -88,6 +92,10 @@ func (rl *RateLimiter) cleanupVisitors() {
 
 func (rl *RateLimiter) Stop() {
 	close(rl.stopCh)
+}
+
+func RateLimit(rl *RateLimiter) func(http.Handler) http.Handler {
+	return rl.Middleware
 }
 
 func ExtractClientIP(r *http.Request) string {

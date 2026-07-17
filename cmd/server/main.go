@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/confuzeus/replyforge/internal/config"
+	"github.com/confuzeus/replyforge/internal/handler"
+	"github.com/confuzeus/replyforge/internal/middleware"
 	"github.com/confuzeus/replyforge/internal/model"
 	"github.com/confuzeus/replyforge/internal/repository"
 	"github.com/confuzeus/replyforge/internal/sanitizer"
@@ -59,18 +61,30 @@ func main() {
 		Logger:       logger,
 	})
 
-	_ = commentService // placeholder until handler is wired
+	commentHandler := handler.NewCommentHandler(handler.HandlerDependencies{
+		Service: commentService,
+		Logger:  logger,
+	})
 
 	mux := http.NewServeMux()
+	commentHandler.RegisterRoutes(mux)
+
+	corsCfg := middleware.NewCORSConfig(cfg.AllowedOrigins)
+	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM, cfg.RateLimitBurst)
+
+	mux.Handle("POST /api/v1/comments", rateLimiter.Middleware(http.HandlerFunc(commentHandler.Create)))
+
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
+	wrappedHandler := corsCfg.Middleware(mux)
+
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
-		Handler:      mux,
+		Handler:      wrappedHandler,
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
 		IdleTimeout:  cfg.IdleTimeout,
@@ -96,6 +110,8 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Error("forced shutdown", "error", err)
 	}
+
+	rateLimiter.Stop()
 
 	logger.Info("server stopped")
 }

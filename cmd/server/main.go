@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/confuzeus/replyforge/internal/config"
+	"github.com/confuzeus/replyforge/internal/repository"
 	"github.com/confuzeus/replyforge/migrations"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -44,6 +45,9 @@ func main() {
 		logger.Error("failed to run migrations", "error", err)
 		os.Exit(1)
 	}
+
+	repo := repository.NewCommentRepository(db)
+	_ = repo // placeholder until service layer is wired up
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {

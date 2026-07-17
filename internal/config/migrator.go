@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strings"
 )
 
 func RunMigrations(db *sql.DB, migrationsFS embed.FS) error {
@@ -28,12 +29,20 @@ func RunMigrations(db *sql.DB, migrationsFS embed.FS) error {
 			return fmt.Errorf("reading migration %s: %w", f.Name(), err)
 		}
 
+		query := string(content)
+		if strings.HasPrefix(strings.TrimSpace(query), "PRAGMA") {
+			if _, err := db.Exec(query); err != nil {
+				return fmt.Errorf("executing migration %s: %w", f.Name(), err)
+			}
+			continue
+		}
+
 		tx, err := db.Begin()
 		if err != nil {
 			return fmt.Errorf("starting transaction for %s: %w", f.Name(), err)
 		}
 
-		if _, err := tx.Exec(string(content)); err != nil {
+		if _, err := tx.Exec(query); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("executing migration %s: %w", f.Name(), err)
 		}

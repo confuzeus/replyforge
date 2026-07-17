@@ -22,10 +22,17 @@ type Config struct {
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
 	IdleTimeout        time.Duration
+	ShutdownTimeout    time.Duration
+	Version            string
 }
 
 func Load() *Config {
 	_ = godotenv.Load()
+
+	version := os.Getenv("VERSION")
+	if version == "" {
+		version = "dev"
+	}
 
 	cfg := &Config{
 		Port:               envOrDefault("PORT", "8080"),
@@ -38,6 +45,8 @@ func Load() *Config {
 		ReadTimeout:        envOrDefaultDuration("READ_TIMEOUT", 10*time.Second),
 		WriteTimeout:       envOrDefaultDuration("WRITE_TIMEOUT", 10*time.Second),
 		IdleTimeout:        envOrDefaultDuration("IDLE_TIMEOUT", 60*time.Second),
+		ShutdownTimeout:    envOrDefaultDuration("SHUTDOWN_TIMEOUT", 30*time.Second),
+		Version:            version,
 	}
 
 	return cfg

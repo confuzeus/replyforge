@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -16,6 +17,7 @@ type RateLimiter struct {
 	rate     rate.Limit
 	burst    int
 	stopCh   chan struct{}
+	logger   *slog.Logger
 }
 
 type visitor struct {
@@ -23,12 +25,13 @@ type visitor struct {
 	lastSeen time.Time
 }
 
-func NewRateLimiter(requestsPerMinute, burst int) *RateLimiter {
+func NewRateLimiter(requestsPerMinute, burst int, logger *slog.Logger) *RateLimiter {
 	r := &RateLimiter{
 		visitors: make(map[string]*visitor),
 		rate:     rate.Limit(requestsPerMinute) / 60,
 		burst:    burst,
 		stopCh:   make(chan struct{}),
+		logger:   logger,
 	}
 	go r.cleanupVisitors()
 	return r
@@ -44,6 +47,13 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		limiter := rl.getVisitor(ip)
 
 		if !limiter.Allow() {
+			RateLimitHitsTotal.Add(1)
+			if rl.logger != nil {
+				rl.logger.Warn("rate limit exceeded",
+					"client_ip", ip,
+					"path", r.URL.Path,
+				)
+			}
 			w.Header().Set("Retry-After", "60")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)

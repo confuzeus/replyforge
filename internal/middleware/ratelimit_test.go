@@ -11,7 +11,7 @@ import (
 )
 
 func TestRateLimit_UnderLimit(t *testing.T) {
-	rl := NewRateLimiter(60, 5)
+	rl := NewRateLimiter(60, 5, nil)
 	defer rl.Stop()
 
 	handler := rl.Middleware(okHandler())
@@ -25,7 +25,7 @@ func TestRateLimit_UnderLimit(t *testing.T) {
 }
 
 func TestRateLimit_OverLimit(t *testing.T) {
-	rl := NewRateLimiter(60, 3)
+	rl := NewRateLimiter(60, 3, nil)
 	defer rl.Stop()
 
 	handler := rl.Middleware(okHandler())
@@ -45,7 +45,7 @@ func TestRateLimit_OverLimit(t *testing.T) {
 }
 
 func TestRateLimit_DifferentIPs(t *testing.T) {
-	rl := NewRateLimiter(60, 2)
+	rl := NewRateLimiter(60, 2, nil)
 	defer rl.Stop()
 
 	handler := rl.Middleware(okHandler())
@@ -75,7 +75,7 @@ func TestRateLimit_DifferentIPs(t *testing.T) {
 }
 
 func TestRateLimit_Cleanup(t *testing.T) {
-	rl := NewRateLimiter(60, 1)
+	rl := NewRateLimiter(60, 1, nil)
 	defer rl.Stop()
 
 	handler := rl.Middleware(okHandler())
@@ -127,7 +127,7 @@ func TestExtractClientIP_RemoteAddr(t *testing.T) {
 }
 
 func TestStop_ClosesChannel(t *testing.T) {
-	rl := NewRateLimiter(60, 3)
+	rl := NewRateLimiter(60, 3, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)

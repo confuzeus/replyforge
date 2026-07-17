@@ -7,6 +7,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/confuzeus/replyforge/internal/middleware"
 	"github.com/confuzeus/replyforge/internal/model"
 	"github.com/confuzeus/replyforge/internal/repository"
 	"github.com/confuzeus/replyforge/internal/sanitizer"
@@ -89,11 +90,14 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 	body := s.sanitizer.Sanitize(input.Body)
 
 	ok, err := s.turnstile.Verify(ctx, input.TurnstileToken, input.ClientIP)
+	middleware.TurnstileVerificationsTotal.Add(1)
 	if err != nil {
+		middleware.TurnstileFailedTotal.Add(1)
 		s.logger.Error("turnstile verification failed", "error", err)
 		return nil, &ServiceError{Code: "TURNSTILE_FAILED", Message: "Turnstile verification failed", Err: err}
 	}
 	if !ok {
+		middleware.TurnstileFailedTotal.Add(1)
 		s.logger.Warn("turnstile verification unsuccessful", "client_ip", input.ClientIP)
 		return nil, &ServiceError{Code: "TURNSTILE_FAILED", Message: "Turnstile verification unsuccessful"}
 	}
@@ -135,11 +139,14 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 	}
 
 	s.logger.Info("comment created",
+		"request_id", middleware.RequestIDFromContext(ctx),
 		"id", id,
 		"display_id", displayID,
 		"post_id", input.PostID,
 		"author_name", authorName,
 	)
+
+	middleware.CommentsCreatedTotal.Add(1)
 
 	return mapToResponse(created), nil
 }

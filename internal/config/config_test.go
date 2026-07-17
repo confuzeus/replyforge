@@ -31,6 +31,8 @@ func TestLoadDefaults(t *testing.T) {
 		{"ReadTimeout", cfg.ReadTimeout, 10 * time.Second},
 		{"WriteTimeout", cfg.WriteTimeout, 10 * time.Second},
 		{"IdleTimeout", cfg.IdleTimeout, 60 * time.Second},
+		{"ShutdownTimeout", cfg.ShutdownTimeout, 30 * time.Second},
+		{"Version", cfg.Version, "dev"},
 	}
 
 	for _, tt := range tests {
@@ -65,6 +67,8 @@ func TestLoadFromEnv(t *testing.T) {
 	os.Setenv("READ_TIMEOUT", "5s")
 	os.Setenv("WRITE_TIMEOUT", "15s")
 	os.Setenv("IDLE_TIMEOUT", "120s")
+	os.Setenv("SHUTDOWN_TIMEOUT", "10s")
+	os.Setenv("VERSION", "1.0.0-test")
 
 	cfg := Load()
 
@@ -97,6 +101,12 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if cfg.IdleTimeout != 120*time.Second {
 		t.Errorf("IdleTimeout = %v, want 120s", cfg.IdleTimeout)
+	}
+	if cfg.ShutdownTimeout != 10*time.Second {
+		t.Errorf("ShutdownTimeout = %v, want 10s", cfg.ShutdownTimeout)
+	}
+	if cfg.Version != "1.0.0-test" {
+		t.Errorf("Version = %q, want %q", cfg.Version, "1.0.0-test")
 	}
 }
 

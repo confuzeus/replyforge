@@ -147,6 +147,9 @@ func writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
 }
 
 func writeError(w http.ResponseWriter, statusCode int, code, message string, details []model.FieldError) {
+	if code == "VALIDATION_ERROR" {
+		middleware.ValidationErrorsTotal.Add(1)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 

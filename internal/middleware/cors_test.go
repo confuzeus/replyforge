@@ -26,7 +26,7 @@ func TestCORS_AllowedOrigin(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "https://example.com", rec.Header().Get("Access-Control-Allow-Origin"))
-	assert.Equal(t, "GET, POST, OPTIONS", rec.Header().Get("Access-Control-Allow-Methods"))
+	assert.Equal(t, "GET, POST, DELETE, OPTIONS", rec.Header().Get("Access-Control-Allow-Methods"))
 	assert.Equal(t, "Content-Type", rec.Header().Get("Access-Control-Allow-Headers"))
 	assert.Equal(t, "86400", rec.Header().Get("Access-Control-Max-Age"))
 	assert.Equal(t, "Origin", rec.Header().Get("Vary"))

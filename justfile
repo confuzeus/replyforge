@@ -21,3 +21,7 @@ build:
 # run the server
 run: build
     ./bin/server
+
+# generate an Argon2id password hash for the admin interface
+hash:
+    go run ./cmd/generate-hash

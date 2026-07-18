@@ -24,6 +24,7 @@ type Config struct {
 	IdleTimeout        time.Duration
 	ShutdownTimeout    time.Duration
 	Version            string
+	AdminPasswordHash  string
 }
 
 func Load() *Config {
@@ -47,6 +48,7 @@ func Load() *Config {
 		IdleTimeout:        envOrDefaultDuration("IDLE_TIMEOUT", 60*time.Second),
 		ShutdownTimeout:    envOrDefaultDuration("SHUTDOWN_TIMEOUT", 30*time.Second),
 		Version:            version,
+		AdminPasswordHash:  os.Getenv("ADMIN_PASSWORD_HASH"),
 	}
 
 	return cfg

@@ -206,6 +206,101 @@ func (s *CommentService) GetByID(ctx context.Context, id int64) (*model.CommentR
 	return mapToResponse(comment), nil
 }
 
+func (s *CommentService) ListAll(ctx context.Context, params ListParams) (*ListResult, error) {
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PerPage <= 0 {
+		params.PerPage = 20
+	}
+	if params.PerPage > 100 {
+		params.PerPage = 100
+	}
+
+	repoSort := ""
+	if params.Sort == "created_at" {
+		repoSort = "created_at"
+	}
+
+	comments, total, err := s.repo.FindAll(ctx, repository.QueryParams{
+		PostID:  params.PostID,
+		Page:    params.Page,
+		PerPage: params.PerPage,
+		Sort:    repoSort,
+	})
+	if err != nil {
+		s.logger.Error("failed to list all comments", "error", err)
+		return nil, &ServiceError{Code: "INTERNAL_ERROR", Message: "Failed to list comments", Err: err}
+	}
+
+	responses := make([]*model.CommentResponse, len(comments))
+	for i, c := range comments {
+		responses[i] = mapToResponse(c)
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(params.PerPage)))
+
+	return &ListResult{
+		Comments:   responses,
+		Total:      total,
+		Page:       params.Page,
+		PerPage:    params.PerPage,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (s *CommentService) GetByIDUnrestricted(ctx context.Context, id int64) (*model.CommentResponse, error) {
+	comment, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, &ServiceError{Code: "NOT_FOUND", Message: "Comment not found", Err: err}
+	}
+	return mapToResponse(comment), nil
+}
+
+func (s *CommentService) ToggleApproval(ctx context.Context, id int64) (*model.CommentResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	comment, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, &ServiceError{Code: "NOT_FOUND", Message: "Comment not found", Err: err}
+	}
+
+	newApproved := !comment.Approved
+	if err := s.repo.UpdateApproved(ctx, id, newApproved); err != nil {
+		s.logger.Error("failed to toggle approval", "error", err, "comment_id", id)
+		return nil, &ServiceError{Code: "INTERNAL_ERROR", Message: "Failed to toggle approval", Err: err}
+	}
+
+	updated, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		s.logger.Error("failed to retrieve updated comment", "error", err, "comment_id", id)
+		return nil, &ServiceError{Code: "INTERNAL_ERROR", Message: "Failed to retrieve updated comment", Err: err}
+	}
+
+	s.logger.Info("comment approval toggled",
+		"comment_id", id,
+		"new_approved", newApproved,
+	)
+
+	return mapToResponse(updated), nil
+}
+
+func (s *CommentService) Delete(ctx context.Context, id int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return &ServiceError{Code: "NOT_FOUND", Message: "Comment not found", Err: err}
+	}
+
+	s.logger.Info("comment deleted",
+		"comment_id", id,
+	)
+
+	return nil
+}
+
 func mapToResponse(c *repository.Comment) *model.CommentResponse {
 	return &model.CommentResponse{
 		ID:         c.ID,

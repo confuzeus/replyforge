@@ -387,6 +387,236 @@ func TestFindByID_ContextCanceled(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestFindAll_AllComments(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	for i, approved := range []bool{true, false, true, false} {
+		c := &Comment{
+			PostID:            "post-1",
+			AuthorName:        "User",
+			Body:              "Comment",
+			IPAddress:         "127.0.0.1",
+			UserAgent:         "test",
+			Approved:          approved,
+			TurnstileVerified: true,
+		}
+		seedComment(t, db, c)
+		_ = i
+	}
+
+	comments, total, err := repo.FindAll(context.Background(), QueryParams{
+		Page:    1,
+		PerPage: 10,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 4, total)
+	assert.Len(t, comments, 4)
+}
+
+func TestFindAll_FilterByPost(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	for _, postID := range []string{"post-a", "post-a", "post-b"} {
+		c := &Comment{
+			PostID:            postID,
+			AuthorName:        "User",
+			Body:              "Comment",
+			IPAddress:         "127.0.0.1",
+			UserAgent:         "test",
+			Approved:          true,
+			TurnstileVerified: true,
+		}
+		seedComment(t, db, c)
+	}
+
+	comments, total, err := repo.FindAll(context.Background(), QueryParams{
+		PostID:  "post-a",
+		Page:    1,
+		PerPage: 10,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, total)
+	assert.Len(t, comments, 2)
+	for _, c := range comments {
+		assert.Equal(t, "post-a", c.PostID)
+	}
+}
+
+func TestFindAll_Pagination(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	for i := 0; i < 25; i++ {
+		c := &Comment{
+			PostID:            "post-1",
+			AuthorName:        "User",
+			Body:              "Comment",
+			IPAddress:         "127.0.0.1",
+			UserAgent:         "test",
+			Approved:          true,
+			TurnstileVerified: true,
+		}
+		seedComment(t, db, c)
+	}
+
+	comments, total, err := repo.FindAll(context.Background(), QueryParams{
+		Page:    2,
+		PerPage: 10,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 25, total)
+	assert.Len(t, comments, 10)
+}
+
+func TestFindAll_EmptyResult(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	comments, total, err := repo.FindAll(context.Background(), QueryParams{
+		Page:    1,
+		PerPage: 10,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, comments)
+	assert.NotNil(t, comments)
+}
+
+func TestUpdateApproved_Success(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	c := &Comment{
+		PostID:     "post-1",
+		AuthorName: "Alice",
+		Body:       "Test",
+		IPAddress:  "127.0.0.1",
+		UserAgent:  "test",
+	}
+	id, err := repo.Insert(context.Background(), c)
+	require.NoError(t, err)
+
+	err = repo.UpdateApproved(context.Background(), id, true)
+	require.NoError(t, err)
+
+	retrieved, err := repo.FindByID(context.Background(), id)
+	require.NoError(t, err)
+	assert.True(t, retrieved.Approved)
+}
+
+func TestUpdateApproved_Toggle(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	c := &Comment{
+		PostID:     "post-1",
+		AuthorName: "Bob",
+		Body:       "Toggle me",
+		IPAddress:  "127.0.0.1",
+		UserAgent:  "test",
+		Approved:   true,
+	}
+	id, err := repo.Insert(context.Background(), c)
+	require.NoError(t, err)
+
+	err = repo.UpdateApproved(context.Background(), id, false)
+	require.NoError(t, err)
+
+	retrieved, err := repo.FindByID(context.Background(), id)
+	require.NoError(t, err)
+	assert.False(t, retrieved.Approved)
+
+	err = repo.UpdateApproved(context.Background(), id, true)
+	require.NoError(t, err)
+
+	retrieved, err = repo.FindByID(context.Background(), id)
+	require.NoError(t, err)
+	assert.True(t, retrieved.Approved)
+}
+
+func TestUpdateApproved_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	err := repo.UpdateApproved(context.Background(), 9999, true)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestDelete_Success(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	c := &Comment{
+		PostID:     "post-1",
+		AuthorName: "Carol",
+		Body:       "Delete me",
+		IPAddress:  "127.0.0.1",
+		UserAgent:  "test",
+	}
+	id, err := repo.Insert(context.Background(), c)
+	require.NoError(t, err)
+
+	err = repo.Delete(context.Background(), id)
+	require.NoError(t, err)
+
+	_, err = repo.FindByID(context.Background(), id)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func TestDelete_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	err := repo.Delete(context.Background(), 9999)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestUpdateApproved_ContextCanceled(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	c := &Comment{
+		PostID:    "post-1",
+		AuthorName: "User",
+		Body:      "Test",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test",
+	}
+	id, err := repo.Insert(context.Background(), c)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = repo.UpdateApproved(ctx, id, true)
+	assert.Error(t, err)
+}
+
+func TestDelete_ContextCanceled(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewCommentRepository(db)
+
+	c := &Comment{
+		PostID:    "post-1",
+		AuthorName: "User",
+		Body:      "Test",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test",
+	}
+	id, err := repo.Insert(context.Background(), c)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = repo.Delete(ctx, id)
+	assert.Error(t, err)
+}
+
 func TestUpdateDisplayID_ContextCanceled(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewCommentRepository(db)

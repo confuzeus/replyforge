@@ -440,6 +440,182 @@ func TestServiceError_ErrorFormatting(t *testing.T) {
 	}
 }
 
+func TestListAll_AllComments(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	seedApprovedComment(t, db, "post-1", "Alice", "Approved")
+	seedUnapprovedComment(t, db)
+
+	result, err := svc.ListAll(context.Background(), ListParams{})
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.Total)
+	assert.Len(t, result.Comments, 2)
+}
+
+func TestListAll_FilterByPost(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	seedApprovedComment(t, db, "post-a", "Alice", "Comment")
+	seedUnapprovedComment(t, db)
+	seedApprovedComment(t, db, "post-b", "Bob", "Comment")
+
+	result, err := svc.ListAll(context.Background(), ListParams{PostID: "post-a"})
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Total)
+	assert.Len(t, result.Comments, 1)
+	assert.Equal(t, "post-a", result.Comments[0].PostID)
+}
+
+func TestListAll_Pagination(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	for i := 0; i < 25; i++ {
+		seedApprovedComment(t, db, "post-1", "Alice", "Comment")
+	}
+
+	result, err := svc.ListAll(context.Background(), ListParams{Page: 2, PerPage: 10})
+	require.NoError(t, err)
+	assert.Equal(t, 25, result.Total)
+	assert.Equal(t, 2, result.Page)
+	assert.Equal(t, 10, result.PerPage)
+	assert.Equal(t, 3, result.TotalPages)
+	assert.Len(t, result.Comments, 10)
+}
+
+func TestListAll_PerPageClamped(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	result, err := svc.ListAll(context.Background(), ListParams{PerPage: 200})
+	require.NoError(t, err)
+	assert.Equal(t, 100, result.PerPage)
+}
+
+func TestListAll_EmptyResult(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	result, err := svc.ListAll(context.Background(), ListParams{})
+	require.NoError(t, err)
+	assert.Equal(t, 0, result.Total)
+	assert.Empty(t, result.Comments)
+	assert.NotNil(t, result.Comments)
+}
+
+func TestGetByIDUnrestricted_Approved(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	c := seedApprovedComment(t, db, "post-1", "Alice", "Hello")
+
+	resp, err := svc.GetByIDUnrestricted(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.Equal(t, c.ID, resp.ID)
+	assert.True(t, resp.Approved)
+}
+
+func TestGetByIDUnrestricted_Unapproved(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	c := seedUnapprovedComment(t, db)
+
+	resp, err := svc.GetByIDUnrestricted(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.Equal(t, c.ID, resp.ID)
+	assert.False(t, resp.Approved)
+}
+
+func TestGetByIDUnrestricted_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	_, err := svc.GetByIDUnrestricted(context.Background(), 99999)
+	require.Error(t, err)
+	var svcErr *ServiceError
+	assert.True(t, errors.As(err, &svcErr))
+	assert.Equal(t, "NOT_FOUND", svcErr.Code)
+}
+
+func TestToggleApproval_ApprovedToUnapproved(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	c := seedApprovedComment(t, db, "post-1", "Alice", "Toggle me")
+
+	resp, err := svc.ToggleApproval(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.Equal(t, c.ID, resp.ID)
+	assert.False(t, resp.Approved)
+}
+
+func TestToggleApproval_UnapprovedToApproved(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	c := seedUnapprovedComment(t, db)
+
+	resp, err := svc.ToggleApproval(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.Equal(t, c.ID, resp.ID)
+	assert.True(t, resp.Approved)
+}
+
+func TestToggleApproval_DoubleToggle(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	c := seedApprovedComment(t, db, "post-1", "Alice", "Toggle twice")
+
+	resp, err := svc.ToggleApproval(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.False(t, resp.Approved)
+
+	resp, err = svc.ToggleApproval(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.True(t, resp.Approved)
+}
+
+func TestToggleApproval_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	_, err := svc.ToggleApproval(context.Background(), 99999)
+	require.Error(t, err)
+	var svcErr *ServiceError
+	assert.True(t, errors.As(err, &svcErr))
+	assert.Equal(t, "NOT_FOUND", svcErr.Code)
+}
+
+func TestDelete_Success(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	c := seedApprovedComment(t, db, "post-1", "Alice", "Delete me")
+	err := svc.Delete(context.Background(), c.ID)
+	require.NoError(t, err)
+
+	_, err = svc.GetByIDUnrestricted(context.Background(), c.ID)
+	require.Error(t, err)
+	var svcErr *ServiceError
+	assert.True(t, errors.As(err, &svcErr))
+	assert.Equal(t, "NOT_FOUND", svcErr.Code)
+}
+
+func TestDelete_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	err := svc.Delete(context.Background(), 99999)
+	require.Error(t, err)
+	var svcErr *ServiceError
+	assert.True(t, errors.As(err, &svcErr))
+	assert.Equal(t, "NOT_FOUND", svcErr.Code)
+}
+
 func TestServiceError_Unwrap(t *testing.T) {
 	baseErr := errors.New("dial tcp: connection refused")
 	svcErr := &ServiceError{Code: "INTERNAL_ERROR", Message: "DB error", Err: baseErr}

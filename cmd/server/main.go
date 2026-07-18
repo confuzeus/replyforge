@@ -19,6 +19,7 @@ import (
 	"github.com/confuzeus/replyforge/internal/repository"
 	"github.com/confuzeus/replyforge/internal/sanitizer"
 	"github.com/confuzeus/replyforge/internal/service"
+	"github.com/confuzeus/replyforge/internal/templates"
 	"github.com/confuzeus/replyforge/migrations"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -68,8 +69,16 @@ func main() {
 		Logger:  logger,
 	})
 
+	adminHandler := handler.NewAdminHandler(handler.AdminHandlerDependencies{
+		Service:      commentService,
+		AdminPage:    templates.AdminPage,
+		PasswordHash: cfg.AdminPasswordHash,
+		Logger:       logger,
+	})
+
 	mux := http.NewServeMux()
 	commentHandler.RegisterRoutes(mux)
+	adminHandler.RegisterRoutes(mux)
 
 	corsCfg := middleware.NewCORSConfig(cfg.AllowedOrigins)
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM, cfg.RateLimitBurst, logger)

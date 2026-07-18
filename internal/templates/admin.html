@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reply Forge - Admin</title>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; line-height: 1.5; padding: 2rem; }
+.container { max-width: 960px; margin: 0 auto; }
+h1 { margin-bottom: 1.5rem; font-size: 1.5rem; }
+.buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.btn { padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.875rem; transition: all 0.15s; }
+.btn:hover { background: #e8e8e8; }
+.btn.active { background: #0066cc; color: #fff; border-color: #0066cc; }
+.btn.danger { border-color: #d32f2f; color: #d32f2f; }
+.btn.danger.active { background: #d32f2f; color: #fff; }
+.card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+.form-group { margin-bottom: 0.75rem; }
+.form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #555; margin-bottom: 0.25rem; }
+.form-group input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.875rem; }
+.form-group input:focus { outline: none; border-color: #0066cc; box-shadow: 0 0 0 2px rgba(0,102,204,0.15); }
+table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; }
+th { font-weight: 600; color: #555; }
+tr:hover { background: #f9f9f9; }
+.status { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.status.approved { background: #e8f5e9; color: #2e7d32; }
+.status.unapproved { background: #fff3e0; color: #e65100; }
+.pagination { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; font-size: 0.875rem; }
+.pagination button { padding: 0.25rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+.pagination button:disabled { opacity: 0.5; cursor: default; }
+.pagination span { color: #666; }
+.alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.875rem; }
+.alert.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+.alert.error { background: #fbe9e7; color: #bf360c; border: 1px solid #ffccbc; }
+.result { margin-top: 1rem; }
+.result-item { padding: 0.75rem; background: #fafafa; border: 1px solid #eee; border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.875rem; }
+.result-item .label { font-weight: 600; color: #555; margin-right: 0.5rem; }
+.empty { text-align: center; color: #888; padding: 3rem 1rem; font-size: 0.9rem; }
+.loading { text-align: center; color: #888; padding: 2rem; }
+</style>
+</head>
+<body>
+<div class="container" x-data="adminApp()">
+  <h1>Comment Administration</h1>
+
+  <div class="buttons">
+    <button class="btn" :class="{ active: view === 'get' }" @click="view = 'get'; result = null; error = ''">Get Comment</button>
+    <button class="btn" :class="{ active: view === 'list' }" @click="listComments()">List Comments</button>
+    <button class="btn danger" :class="{ active: view === 'toggle' }" @click="view = 'toggle'; result = null; error = ''">Toggle Approval</button>
+    <button class="btn danger" :class="{ active: view === 'delete' }" @click="view = 'delete'; result = null; error = ''">Delete Comment</button>
+  </div>
+
+  <div x-show="error" class="alert error" x-text="error"></div>
+  <div x-show="alertMsg" class="alert success" x-text="alertMsg"></div>
+
+  <!-- Get Comment -->
+  <div x-show="view === 'get'" class="card">
+    <div class="form-group">
+      <label for="get-id">Comment ID</label>
+      <input type="number" id="get-id" x-model="getID" placeholder="Enter comment ID" min="1">
+    </div>
+    <button class="btn" :class="{ active: true }" @click="fetchComment()">Fetch Comment</button>
+
+    <div x-show="result" class="result">
+      <div class="result-item"><span class="label">ID:</span> <span x-text="result.id"></span></div>
+      <div class="result-item"><span class="label">Display ID:</span> <span x-text="result.display_id"></span></div>
+      <div class="result-item"><span class="label">Post ID:</span> <span x-text="result.post_id"></span></div>
+      <div class="result-item"><span class="label">Author:</span> <span x-text="result.author_name"></span></div>
+      <div class="result-item"><span class="label">Body:</span> <span x-text="result.body"></span></div>
+      <div class="result-item"><span class="label">Approved:</span> <span x-text="result.approved ? 'Yes' : 'No'"></span></div>
+      <div class="result-item"><span class="label">Created:</span> <span x-text="result.created_at"></span></div>
+    </div>
+  </div>
+
+  <!-- List Comments -->
+  <div x-show="view === 'list'" class="card">
+    <div class="form-group">
+      <label for="list-post">Filter by Post ID (optional)</label>
+      <input type="text" id="list-post" x-model="listPostID" placeholder="Leave empty to show all" @keyup.enter="listComments()">
+    </div>
+    <button class="btn" :class="{ active: true }" @click="listComments()">Refresh List</button>
+
+    <div x-show="loading" class="loading">Loading...</div>
+
+    <div x-show="!loading && listData.length === 0" class="empty">No comments found</div>
+
+    <div x-show="!loading && listData.length > 0" style="margin-top:1rem;">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Created</th>
+            <th>Post ID</th>
+            <th>Approved</th>
+            <th>Excerpt</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="item in listData" :key="item.id">
+            <tr>
+              <td x-text="item.id"></td>
+              <td x-text="formatDate(item.created_at)"></td>
+              <td x-text="item.post_id"></td>
+              <td><span class="status" :class="item.approved ? 'approved' : 'unapproved'" x-text="item.approved ? 'Yes' : 'No'"></span></td>
+              <td x-text="excerpt(item.body)"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+
+      <div class="pagination">
+        <button :disabled="listPage <= 1" @click="listPage--; listComments()">Previous</button>
+        <span x-text="'Page ' + listPage + ' of ' + listTotalPages + ' (' + listTotal + ' total)'"></span>
+        <button :disabled="listPage >= listTotalPages" @click="listPage++; listComments()">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toggle Approval -->
+  <div x-show="view === 'toggle'" class="card">
+    <div class="form-group">
+      <label for="toggle-id">Comment ID</label>
+      <input type="number" id="toggle-id" x-model="toggleID" placeholder="Enter comment ID" min="1">
+    </div>
+    <div class="form-group">
+      <label for="toggle-password">Admin Password</label>
+      <input type="password" id="toggle-password" x-model="togglePassword" placeholder="Enter admin password">
+    </div>
+    <button class="btn danger" :class="{ active: true }" @click="toggleApproval()">Toggle Approval</button>
+
+    <div x-show="result" class="result">
+      <div class="result-item"><span class="label">Result:</span> <span x-text="result.message"></span></div>
+      <div class="result-item"><span class="label">Comment ID:</span> <span x-text="result.data.id"></span></div>
+      <div class="result-item"><span class="label">New Status:</span> <span x-text="result.data.approved ? 'Approved' : 'Rejected'"></span></div>
+    </div>
+  </div>
+
+  <!-- Delete Comment -->
+  <div x-show="view === 'delete'" class="card">
+    <div class="form-group">
+      <label for="delete-id">Comment ID</label>
+      <input type="number" id="delete-id" x-model="deleteID" placeholder="Enter comment ID" min="1">
+    </div>
+    <div class="form-group">
+      <label for="delete-password">Admin Password</label>
+      <input type="password" id="delete-password" x-model="deletePassword" placeholder="Enter admin password">
+    </div>
+    <button class="btn danger" :class="{ active: true }" @click="deleteComment()">Delete Comment</button>
+
+    <div x-show="result" class="result">
+      <div class="result-item"><span x-text="result.message"></span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function adminApp() {
+  return {
+    view: 'get',
+    result: null,
+    alertMsg: '',
+    error: '',
+    loading: false,
+
+    getID: '',
+    listPostID: '',
+    listData: [],
+    listPage: 1,
+    listTotal: 0,
+    listTotalPages: 0,
+    toggleID: '',
+    togglePassword: '',
+    deleteID: '',
+    deletePassword: '',
+
+    clearAlerts() {
+      this.alertMsg = '';
+      this.error = '';
+    },
+
+    async apiFetch(url, options = {}) {
+      try {
+        const resp = await fetch(url, options);
+        const data = await resp.json();
+        if (!resp.ok) {
+          const msg = data.error && data.error.message ? data.error.message : 'Request failed';
+          throw new Error(msg);
+        }
+        return data;
+      } catch (e) {
+        throw e;
+      }
+    },
+
+    async fetchComment() {
+      this.clearAlerts();
+      this.result = null;
+      if (!this.getID) { this.error = 'Please enter a comment ID'; return; }
+      try {
+        const data = await this.apiFetch('/api/v1/admin/comments/' + this.getID);
+        this.result = data.data;
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
+
+    async listComments() {
+      this.clearAlerts();
+      this.result = null;
+      this.error = '';
+      this.view = 'list';
+      this.loading = true;
+      try {
+        const params = new URLSearchParams();
+        if (this.listPostID) params.set('post_id', this.listPostID);
+        params.set('page', this.listPage);
+        params.set('per_page', '20');
+        const data = await this.apiFetch('/api/v1/admin/comments?' + params.toString());
+        this.listData = data.data;
+        this.listTotal = data.pagination.total;
+        this.listTotalPages = data.pagination.total_pages;
+        this.listPage = data.pagination.page;
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async toggleApproval() {
+      this.clearAlerts();
+      this.result = null;
+      if (!this.toggleID) { this.error = 'Please enter a comment ID'; return; }
+      if (!this.togglePassword) { this.error = 'Please enter the admin password'; return; }
+      try {
+        const data = await this.apiFetch('/api/v1/admin/comments/' + this.toggleID + '/toggle-approval', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: this.togglePassword }),
+        });
+        this.result = data;
+        this.togglePassword = '';
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
+
+    async deleteComment() {
+      this.clearAlerts();
+      this.result = null;
+      if (!this.deleteID) { this.error = 'Please enter a comment ID'; return; }
+      if (!this.deletePassword) { this.error = 'Please enter the admin password'; return; }
+      try {
+        const data = await this.apiFetch('/api/v1/admin/comments/' + this.deleteID, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: this.deletePassword }),
+        });
+        this.result = data;
+        this.deletePassword = '';
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
+
+    excerpt(text) {
+      if (!text) return '';
+      return text.length > 100 ? text.substring(0, 100) + '...' : text;
+    },
+
+    formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+    },
+  };
+}
+</script>
+</body>
+</html>

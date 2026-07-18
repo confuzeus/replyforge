@@ -146,3 +146,93 @@ func (r *CommentRepository) FindApproved(ctx context.Context, params QueryParams
 
 	return comments, total, nil
 }
+
+func (r *CommentRepository) FindAll(ctx context.Context, params QueryParams) ([]*Comment, int, error) {
+	where := "WHERE 1=1"
+	args := []interface{}{}
+	if params.PostID != "" {
+		where += " AND post_id = ?"
+		args = append(args, params.PostID)
+	}
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM comments " + where
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting comments: %w", err)
+	}
+
+	orderBy := "ORDER BY created_at DESC"
+	if params.Sort == "created_at" {
+		orderBy = "ORDER BY created_at ASC"
+	}
+
+	offset := (params.Page - 1) * params.PerPage
+	limit := params.PerPage
+
+	selectQuery := fmt.Sprintf(
+		`SELECT id, display_id, post_id, author_name, body, approved,
+		 ip_address, user_agent, turnstile_verified, created_at, updated_at
+		 FROM comments %s %s LIMIT ? OFFSET ?`,
+		where, orderBy,
+	)
+	selectArgs := append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, selectQuery, selectArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("querying comments: %w", err)
+	}
+	defer rows.Close()
+
+	var comments []*Comment
+	for rows.Next() {
+		c, err := scanComment(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("scanning comment: %w", err)
+		}
+		comments = append(comments, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating comments: %w", err)
+	}
+
+	if comments == nil {
+		comments = []*Comment{}
+	}
+
+	return comments, total, nil
+}
+
+func (r *CommentRepository) UpdateApproved(ctx context.Context, id int64, approved bool) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE comments SET approved = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		approved, id,
+	)
+	if err != nil {
+		return fmt.Errorf("updating approved for comment %d: %w", id, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("comment %d not found", id)
+	}
+	return nil
+}
+
+func (r *CommentRepository) Delete(ctx context.Context, id int64) error {
+	result, err := r.db.ExecContext(ctx,
+		`DELETE FROM comments WHERE id = ?`, id,
+	)
+	if err != nil {
+		return fmt.Errorf("deleting comment %d: %w", id, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("comment %d not found", id)
+	}
+	return nil
+}

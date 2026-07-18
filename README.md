@@ -28,6 +28,7 @@ Configuration is loaded from environment variables. Copy `.env.example` to `.env
 | `IDLE_TIMEOUT`         | `60s`              | HTTP idle timeout                           |
 | `SHUTDOWN_TIMEOUT`     | `30s`              | Graceful shutdown deadline                  |
 | `VERSION`              | `dev`              | Version string reported in health checks    |
+| `ADMIN_PASSWORD_HASH`  | _(not set)_        | Argon2id PHC hash for the admin password    |
 
 ## API Endpoints
 
@@ -38,6 +39,37 @@ Configuration is loaded from environment variables. Copy `.env.example` to `.env
 | `GET`  | `/api/v1/comments/{id}` | Get a comment by ID               |
 | `GET`  | `/health`               | Health check with database status |
 | `GET`  | `/debug/vars`           | Runtime metrics (expvar)          |
+
+## Admin Interface
+
+An HTML admin interface is available at `GET /admin` for managing comments. It uses a single-page design with AlpineJS loaded from CDN — no build pipeline required.
+
+### Setup
+
+Generate an Argon2id hash of your admin password:
+
+```bash
+just hash
+```
+
+Copy the output `ADMIN_PASSWORD_HASH=...` into your `.env` file. If `ADMIN_PASSWORD_HASH` is empty or unset, the interface still loads but mutating operations (toggle approval, delete) return `501 Not Implemented`.
+
+### Usage
+
+Open `http://localhost:8080/admin` in a browser. Four actions are available:
+
+| Action | Endpoint | Auth Required |
+| ------ | -------- | ------------- |
+| Get a comment | `GET /api/v1/admin/comments/{id}` | No |
+| List all comments | `GET /api/v1/admin/comments` | No |
+| Toggle approval | `POST /api/v1/admin/comments/{id}/toggle-approval` | Password in JSON body |
+| Delete a comment | `DELETE /api/v1/admin/comments/{id}` | Password in JSON body |
+
+**Reading operations** (get, list) require no authentication and work for *all* comments regardless of approval state.
+
+**Mutating operations** (toggle, delete) require the admin password sent in the request body: `{"password": "your-password"}`. The password is verified securely against the stored Argon2id hash with constant-time comparison.
+
+The list view shows all comments with pagination (20 per page), an excerpt of the body (first 100 characters), the approval status, and an optional post ID filter. Results are rendered inline using AlpineJS — no page reloads.
 
 ### Health Check Response
 

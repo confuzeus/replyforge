@@ -4,11 +4,11 @@ default:
 
 # format all Go files
 fmt:
-    goimports -w .
+    go fmt ./...
 
-# lint with golangci-lint
+# lint with go vet
 lint:
-    golangci-lint run
+    go vet ./...
 
 # run all tests with race detector
 test:

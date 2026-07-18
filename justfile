@@ -16,7 +16,7 @@ test:
 
 # build the server binary
 build:
-    go build -ldflags="-s -w -X 'main.VERSION=1.0.0'" -o bin/server ./cmd/server
+    go build -ldflags="-s -w" -o bin/server ./cmd/server
 
 # run the server
 run: build

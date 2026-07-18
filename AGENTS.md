@@ -3,9 +3,9 @@
 ## Build & Run
 
 - Task runner: **`just`**, not `make`. Commands: `just fmt`, `just lint`, `just test`, `just build`, `just run`.
-- `just build` runs `go build -ldflags="-s -w -X 'main.VERSION=1.0.0'" -o bin/server ./cmd/server`.
+- `just build` runs `go build -ldflags="-s -w" -o bin/server ./cmd/server`.
 - **CGO_ENABLED=1 is required** for all builds (SQLite via `go-sqlite3` CGO driver).
-- Embed version: `go build -ldflags="-s -w -X 'main.VERSION=1.0.0'" -o bin/server ./cmd/server`.
+- Version is set via the `VERSION` env var (defaults to `"dev"` in `config.Load()`).
 - Single entrypoint: `cmd/server/main.go`.
 
 ## Tests

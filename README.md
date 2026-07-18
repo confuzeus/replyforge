@@ -119,7 +119,7 @@ services:
 ## Standalone Binary
 
 ```bash
-go build -ldflags="-s -w -X 'main.VERSION=1.0.0'" -o bin/server ./cmd/server
+go build -ldflags="-s -w" -o bin/server ./cmd/server
 ./bin/server
 ```
 

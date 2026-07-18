@@ -1,0 +1,17 @@
+name: replyforge
+
+volumes:
+  comments_data:
+
+services:
+  comments:
+    image: dockershepherd/replyforge:dev
+    env_file:
+      - path: ./.env.production
+        required: true
+    volumes:
+      - comments_data:/app/data
+    x-ports:
+      - comments.example.com:8080/https
+    x-machines:
+      - mymachine

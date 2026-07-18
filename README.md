@@ -14,30 +14,30 @@ just build && just run
 
 Configuration is loaded from environment variables. Copy `.env.example` to `.env` and adjust as needed.
 
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `8080` | Server listen port |
-| `DATABASE_PATH` | `data/comments.db` | SQLite database file path |
-| `LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
-| `TURNSTILE_SECRET_KEY` | *(required)* | Cloudflare Turnstile secret key |
-| `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins |
-| `RATE_LIMIT_RPM` | `10` | Rate limit requests per minute per IP |
-| `RATE_LIMIT_BURST` | `15` | Rate limit burst capacity |
-| `READ_TIMEOUT` | `10s` | HTTP read timeout |
-| `WRITE_TIMEOUT` | `10s` | HTTP write timeout |
-| `IDLE_TIMEOUT` | `60s` | HTTP idle timeout |
-| `SHUTDOWN_TIMEOUT` | `30s` | Graceful shutdown deadline |
-| `VERSION` | `dev` | Version string reported in health checks |
+| Variable               | Default            | Description                                 |
+| ---------------------- | ------------------ | ------------------------------------------- |
+| `PORT`                 | `8080`             | Server listen port                          |
+| `DATABASE_PATH`        | `data/comments.db` | SQLite database file path                   |
+| `LOG_LEVEL`            | `info`             | Log level: `debug`, `info`, `warn`, `error` |
+| `TURNSTILE_SECRET_KEY` | _(required)_       | Cloudflare Turnstile secret key             |
+| `ALLOWED_ORIGINS`      | `*`                | Comma-separated CORS origins                |
+| `RATE_LIMIT_RPM`       | `10`               | Rate limit requests per minute per IP       |
+| `RATE_LIMIT_BURST`     | `15`               | Rate limit burst capacity                   |
+| `READ_TIMEOUT`         | `10s`              | HTTP read timeout                           |
+| `WRITE_TIMEOUT`        | `10s`              | HTTP write timeout                          |
+| `IDLE_TIMEOUT`         | `60s`              | HTTP idle timeout                           |
+| `SHUTDOWN_TIMEOUT`     | `30s`              | Graceful shutdown deadline                  |
+| `VERSION`              | `dev`              | Version string reported in health checks    |
 
 ## API Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/v1/comments` | Create a comment |
-| `GET` | `/api/v1/comments` | List approved comments |
-| `GET` | `/api/v1/comments/{id}` | Get a comment by display ID |
-| `GET` | `/health` | Health check with database status |
-| `GET` | `/debug/vars` | Runtime metrics (expvar) |
+| Method | Path                    | Description                       |
+| ------ | ----------------------- | --------------------------------- |
+| `POST` | `/api/v1/comments`      | Create a comment                  |
+| `GET`  | `/api/v1/comments`      | List approved comments            |
+| `GET`  | `/api/v1/comments/{id}` | Get a comment by ID               |
+| `GET`  | `/health`               | Health check with database status |
+| `GET`  | `/debug/vars`           | Runtime metrics (expvar)          |
 
 ### Health Check Response
 
@@ -59,14 +59,14 @@ Configuration is loaded from environment variables. Copy `.env.example` to `.env
 
 Runtime metrics are exposed at `GET /debug/vars` in JSON format via `expvar`:
 
-| Metric | Description |
-|---|---|
-| `comments_created_total` | Total comment creation attempts |
-| `turnstile_verifications_total` | Total Turnstile verification attempts |
-| `turnstile_verifications_failed_total` | Failed Turnstile verifications |
-| `rate_limit_hits_total` | Rate limit violations |
-| `validation_errors_total` | Input validation failures |
-| `panics_total` | Recovered panics |
+| Metric                                 | Description                           |
+| -------------------------------------- | ------------------------------------- |
+| `comments_created_total`               | Total comment creation attempts       |
+| `turnstile_verifications_total`        | Total Turnstile verification attempts |
+| `turnstile_verifications_failed_total` | Failed Turnstile verifications        |
+| `rate_limit_hits_total`                | Rate limit violations                 |
+| `validation_errors_total`              | Input validation failures             |
+| `panics_total`                         | Recovered panics                      |
 
 ## Structured Logging
 
@@ -75,6 +75,7 @@ All log output is JSON-formatted via `log/slog`. Each request gets a unique `req
 ## Graceful Shutdown
 
 The server handles `SIGINT` and `SIGTERM` for graceful shutdown:
+
 - Drains in-flight requests (up to `SHUTDOWN_TIMEOUT`, default 30s)
 - On a second signal, forces immediate shutdown
 - Stops rate limiter cleanup goroutine

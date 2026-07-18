@@ -46,6 +46,148 @@ Configuration is loaded from environment variables. Copy `.env.example` to `.env
 | `GET`  | `/health`               | Health check with database status |
 | `GET`  | `/debug/vars`           | Runtime metrics (expvar)          |
 
+## Client API Reference
+
+All endpoints return `Content-Type: application/json`. A unique `X-Request-ID` header is set on every response for tracing.
+
+### Error Response Format
+
+Errors follow a consistent structure:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "The request contains invalid parameters",
+    "details": [{ "field": "author_name", "message": "is required" }]
+  }
+}
+```
+
+| Code               | HTTP Status | Description                                                                |
+| ------------------ | ----------- | -------------------------------------------------------------------------- |
+| `VALIDATION_ERROR` | `400`       | Request body failed validation. `details` array contains per-field errors. |
+| `TURNSTILE_FAILED` | `403`       | Cloudflare Turnstile token was missing, invalid, or verification failed.   |
+| `NOT_FOUND`        | `404`       | Comment does not exist or is not yet approved.                             |
+| `INTERNAL_ERROR`   | `500`       | Unexpected server error. Retry later.                                      |
+
+### Create a Comment
+
+```text
+POST /api/v1/comments
+```
+
+**Request body:**
+
+```json
+{
+  "post_id": "my-blog-post-1",
+  "author_name": "Alice",
+  "body": "Great article, thanks for sharing!",
+  "turnstile_token": "0x4AA...client-turnstile-token..."
+}
+```
+
+| Field             | Type   | Max Length | Required | Description                                                      |
+| ----------------- | ------ | ---------- | -------- | ---------------------------------------------------------------- |
+| `post_id`         | string | 100        | yes      | Identifies which post the comment belongs to. Free-form string.  |
+| `author_name`     | string | 100        | yes      | Display name of the commenter. Stripped of all HTML tags.        |
+| `body`            | string | 5000       | yes      | Comment text. Stripped of all HTML tags.                         |
+| `turnstile_token` | string | —          | yes      | Cloudflare Turnstile client-side token obtained from the widget. |
+
+**Validation rules:**
+
+- All four fields are required. Empty strings are rejected.
+- `author_name` and `body` are sanitized server-side: all HTML tags stripped, trimmed, Unicode NFC normalized, whitespace collapsed, null bytes removed.
+- `turnstile_token` must be a valid Cloudflare Turnstile token. Verification is cached in-memory for 5 minutes (keyed by SHA256(token + client IP)).
+
+**Rate limiting:**
+
+This endpoint is rate-limited per client IP (default: 10 requests per minute, burst of 15). Exceeding the limit returns `429 Too Many Requests`.
+
+**Success response (`201 Created`):**
+
+```json
+{
+  "data": {
+    "id": 42,
+    "display_id": "aB3xK7",
+    "post_id": "my-blog-post-1",
+    "author_name": "Alice",
+    "body": "Great article, thanks for sharing!",
+    "approved": false,
+    "created_at": "2026-07-19T12:00:00Z"
+  }
+}
+```
+
+All comments are created with `approved: false` and require admin moderation before appearing in the public listing. The `display_id` is a short unique identifier (generated via sqids from the numeric `id`), suitable for use in URL fragments or client-side references.
+
+### List Approved Comments
+
+```text
+GET /api/v1/comments?post_id=my-blog-post-1&page=1&per_page=20&sort=created_at
+```
+
+**Query parameters:**
+
+| Parameter  | Type   | Default | Description                                                                                               |
+| ---------- | ------ | ------- | --------------------------------------------------------------------------------------------------------- |
+| `post_id`  | string | —       | Filter comments belonging to a specific post.                                                             |
+| `page`     | int    | `1`     | Page number (1-indexed).                                                                                  |
+| `per_page` | int    | `20`    | Items per page (max `100`).                                                                               |
+| `sort`     | string | —       | Sort order. Set to `created_at` for ascending chronological order. Defaults to descending (newest first). |
+
+**Success response (`200 OK`):**
+
+```json
+{
+  "data": [
+    {
+      "id": 42,
+      "display_id": "aB3xK7",
+      "post_id": "my-blog-post-1",
+      "author_name": "Alice",
+      "body": "Great article, thanks for sharing!",
+      "approved": true,
+      "created_at": "2026-07-19T12:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+Only approved comments are returned. Unapproved comments are invisible to this endpoint.
+
+### Get a Comment by ID
+
+```text
+GET /api/v1/comments/{id}
+```
+
+`{id}` is the numeric comment ID (e.g. `42`). Returns `404 Not Found` if the comment does not exist **or** is not yet approved.
+
+**Success response (`200 OK`):**
+
+```json
+{
+  "data": {
+    "id": 42,
+    "display_id": "aB3xK7",
+    "post_id": "my-blog-post-1",
+    "author_name": "Alice",
+    "body": "Great article, thanks for sharing!",
+    "approved": true,
+    "created_at": "2026-07-19T12:00:00Z"
+  }
+}
+```
+
 ## Admin Interface
 
 An HTML admin interface is available at `GET /admin` for managing comments. It uses a single-page design with AlpineJS loaded from CDN — no build pipeline required.
@@ -64,14 +206,14 @@ Copy the output `ADMIN_PASSWORD_HASH=...` into your `.env` file. If `ADMIN_PASSW
 
 Open `http://localhost:8080/admin` in a browser. Four actions are available:
 
-| Action | Endpoint | Auth Required |
-| ------ | -------- | ------------- |
-| Get a comment | `GET /api/v1/admin/comments/{id}` | No |
-| List all comments | `GET /api/v1/admin/comments` | No |
-| Toggle approval | `POST /api/v1/admin/comments/{id}/toggle-approval` | Password in JSON body |
-| Delete a comment | `DELETE /api/v1/admin/comments/{id}` | Password in JSON body |
+| Action            | Endpoint                                           | Auth Required         |
+| ----------------- | -------------------------------------------------- | --------------------- |
+| Get a comment     | `GET /api/v1/admin/comments/{id}`                  | No                    |
+| List all comments | `GET /api/v1/admin/comments`                       | No                    |
+| Toggle approval   | `POST /api/v1/admin/comments/{id}/toggle-approval` | Password in JSON body |
+| Delete a comment  | `DELETE /api/v1/admin/comments/{id}`               | Password in JSON body |
 
-**Reading operations** (get, list) require no authentication and work for *all* comments regardless of approval state.
+**Reading operations** (get, list) require no authentication and work for _all_ comments regardless of approval state.
 
 **Mutating operations** (toggle, delete) require the admin password sent in the request body: `{"password": "your-password"}`. The password is verified securely against the stored Argon2id hash with constant-time comparison.
 
@@ -81,14 +223,14 @@ The list view shows all comments with pagination (20 per page), an excerpt of th
 
 When a new comment is created, an email notification can be sent to the administrator if SMTP is configured. The email includes the comment's numeric ID and a brief message indicating a new comment requires moderation.
 
-| Variable | Description |
-| -------- | ----------- |
-| `SMTP_HOST` | SMTP server hostname. Leave empty to disable email notifications entirely. |
-| `SMTP_PORT` | SMTP server port (default `587`). |
-| `SMTP_USERNAME` | Username for PLAIN authentication against the SMTP server. |
-| `SMTP_PASSWORD` | Password for SMTP authentication. |
-| `SMTP_FROM` | The sender address used in the `From` header of notification emails. |
-| `SMTP_TO` | The recipient address where notification emails are delivered. |
+| Variable        | Description                                                                |
+| --------------- | -------------------------------------------------------------------------- |
+| `SMTP_HOST`     | SMTP server hostname. Leave empty to disable email notifications entirely. |
+| `SMTP_PORT`     | SMTP server port (default `587`).                                          |
+| `SMTP_USERNAME` | Username for PLAIN authentication against the SMTP server.                 |
+| `SMTP_PASSWORD` | Password for SMTP authentication.                                          |
+| `SMTP_FROM`     | The sender address used in the `From` header of notification emails.       |
+| `SMTP_TO`       | The recipient address where notification emails are delivered.             |
 
 The email is sent **asynchronously** — the HTTP response is returned immediately, and failures are logged but never propagated to the client. If `SMTP_HOST` is empty, notification sending is silently skipped.
 

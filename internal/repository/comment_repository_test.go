@@ -346,11 +346,11 @@ func TestInsert_ContextCanceled(t *testing.T) {
 	cancel()
 
 	_, err := repo.Insert(ctx, &Comment{
-		PostID:    "post-1",
+		PostID:     "post-1",
 		AuthorName: "Alice",
-		Body:      "Hello",
-		IPAddress: "127.0.0.1",
-		UserAgent: "test",
+		Body:       "Hello",
+		IPAddress:  "127.0.0.1",
+		UserAgent:  "test",
 	})
 	assert.Error(t, err)
 }
@@ -580,11 +580,11 @@ func TestUpdateApproved_ContextCanceled(t *testing.T) {
 	repo := NewCommentRepository(db)
 
 	c := &Comment{
-		PostID:    "post-1",
+		PostID:     "post-1",
 		AuthorName: "User",
-		Body:      "Test",
-		IPAddress: "127.0.0.1",
-		UserAgent: "test",
+		Body:       "Test",
+		IPAddress:  "127.0.0.1",
+		UserAgent:  "test",
 	}
 	id, err := repo.Insert(context.Background(), c)
 	require.NoError(t, err)
@@ -601,11 +601,11 @@ func TestDelete_ContextCanceled(t *testing.T) {
 	repo := NewCommentRepository(db)
 
 	c := &Comment{
-		PostID:    "post-1",
+		PostID:     "post-1",
 		AuthorName: "User",
-		Body:      "Test",
-		IPAddress: "127.0.0.1",
-		UserAgent: "test",
+		Body:       "Test",
+		IPAddress:  "127.0.0.1",
+		UserAgent:  "test",
 	}
 	id, err := repo.Insert(context.Background(), c)
 	require.NoError(t, err)
@@ -622,11 +622,11 @@ func TestUpdateDisplayID_ContextCanceled(t *testing.T) {
 	repo := NewCommentRepository(db)
 
 	seedComment(t, db, &Comment{
-		PostID:    "post-1",
+		PostID:     "post-1",
 		AuthorName: "User",
-		Body:      "Comment",
-		IPAddress: "127.0.0.1",
-		UserAgent: "test",
+		Body:       "Comment",
+		IPAddress:  "127.0.0.1",
+		UserAgent:  "test",
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())

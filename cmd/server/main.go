@@ -65,12 +65,12 @@ func main() {
 	}
 
 	commentService := service.NewCommentService(service.ServiceDependencies{
-		Repository:     repo,
-		DisplayIDGen:   displayIDGen,
-		Turnstile:      turnstileVerifier,
-		Sanitizer:      inputSanitizer,
-		Logger:         logger,
-		EmailNotifier:  emailNotifier,
+		Repository:    repo,
+		DisplayIDGen:  displayIDGen,
+		Turnstile:     turnstileVerifier,
+		Sanitizer:     inputSanitizer,
+		Logger:        logger,
+		EmailNotifier: emailNotifier,
 	})
 
 	commentHandler := handler.NewCommentHandler(handler.HandlerDependencies{
@@ -98,7 +98,7 @@ func main() {
 	deps := middlewareDeps{
 		Logger:      logger,
 		CORSConfig:  corsCfg,
-		RateLimiter:  rateLimiter,
+		RateLimiter: rateLimiter,
 	}
 
 	wrappedHandler := setupMiddleware(mux, deps)

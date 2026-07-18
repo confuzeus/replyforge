@@ -22,12 +22,12 @@ type emailNotifier interface {
 }
 
 type ServiceDependencies struct {
-	Repository     *repository.CommentRepository
-	DisplayIDGen   *model.DisplayIDGenerator
-	Turnstile      turnstileVerifier
-	Sanitizer      *sanitizer.Sanitizer
-	Logger         *slog.Logger
-	EmailNotifier  emailNotifier
+	Repository    *repository.CommentRepository
+	DisplayIDGen  *model.DisplayIDGenerator
+	Turnstile     turnstileVerifier
+	Sanitizer     *sanitizer.Sanitizer
+	Logger        *slog.Logger
+	EmailNotifier emailNotifier
 }
 
 type CommentService struct {

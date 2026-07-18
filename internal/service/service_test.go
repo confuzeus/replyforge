@@ -52,12 +52,12 @@ func setupTestDB(t *testing.T) *sql.DB {
 func newTestService(t *testing.T, db *sql.DB, turnstileOK bool) *CommentService {
 	t.Helper()
 	return NewCommentService(ServiceDependencies{
-		Repository:     repository.NewCommentRepository(db),
-		DisplayIDGen:   model.NewDisplayIDGenerator(),
-		Turnstile:      &stubTurnstileVerifier{ok: turnstileOK},
-		Sanitizer:      sanitizer.NewSanitizer(),
-		Logger:         slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
-		EmailNotifier:  nil,
+		Repository:    repository.NewCommentRepository(db),
+		DisplayIDGen:  model.NewDisplayIDGenerator(),
+		Turnstile:     &stubTurnstileVerifier{ok: turnstileOK},
+		Sanitizer:     sanitizer.NewSanitizer(),
+		Logger:        slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		EmailNotifier: nil,
 	})
 }
 
@@ -172,12 +172,12 @@ func TestCreate_SendsEmailNotification(t *testing.T) {
 	db := setupTestDB(t)
 	notifier := &stubEmailNotifier{sent: make(chan int64, 1)}
 	svc := NewCommentService(ServiceDependencies{
-		Repository:     repository.NewCommentRepository(db),
-		DisplayIDGen:   model.NewDisplayIDGenerator(),
-		Turnstile:      &stubTurnstileVerifier{ok: true},
-		Sanitizer:      sanitizer.NewSanitizer(),
-		Logger:         slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
-		EmailNotifier:  notifier,
+		Repository:    repository.NewCommentRepository(db),
+		DisplayIDGen:  model.NewDisplayIDGenerator(),
+		Turnstile:     &stubTurnstileVerifier{ok: true},
+		Sanitizer:     sanitizer.NewSanitizer(),
+		Logger:        slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		EmailNotifier: notifier,
 	})
 
 	_, err := svc.Create(context.Background(), CreateInput{
@@ -202,12 +202,12 @@ func TestCreate_NoEmailOnTurnstileFail(t *testing.T) {
 	db := setupTestDB(t)
 	notifier := &stubEmailNotifier{sent: make(chan int64, 1)}
 	svc := NewCommentService(ServiceDependencies{
-		Repository:     repository.NewCommentRepository(db),
-		DisplayIDGen:   model.NewDisplayIDGenerator(),
-		Turnstile:      &stubTurnstileVerifier{ok: false},
-		Sanitizer:      sanitizer.NewSanitizer(),
-		Logger:         slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
-		EmailNotifier:  notifier,
+		Repository:    repository.NewCommentRepository(db),
+		DisplayIDGen:  model.NewDisplayIDGenerator(),
+		Turnstile:     &stubTurnstileVerifier{ok: false},
+		Sanitizer:     sanitizer.NewSanitizer(),
+		Logger:        slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		EmailNotifier: notifier,
 	})
 
 	_, err := svc.Create(context.Background(), CreateInput{
@@ -486,18 +486,18 @@ func TestServiceError_ErrorFormatting(t *testing.T) {
 		contained []string
 	}{
 		{
-			name: "with wrapped error",
-			svcErr: &ServiceError{Code: "NOT_FOUND", Message: "Comment not found", Err: assert.AnError},
+			name:      "with wrapped error",
+			svcErr:    &ServiceError{Code: "NOT_FOUND", Message: "Comment not found", Err: assert.AnError},
 			contained: []string{"NOT_FOUND", "Comment not found", assert.AnError.Error()},
 		},
 		{
-			name:   "without wrapped error",
-			svcErr: &ServiceError{Code: "VALIDATION_ERROR", Message: "Invalid request"},
+			name:      "without wrapped error",
+			svcErr:    &ServiceError{Code: "VALIDATION_ERROR", Message: "Invalid request"},
 			contained: []string{"VALIDATION_ERROR", "Invalid request"},
 		},
 		{
-			name:   "empty code",
-			svcErr: &ServiceError{Code: "", Message: "Something happened"},
+			name:      "empty code",
+			svcErr:    &ServiceError{Code: "", Message: "Something happened"},
 			contained: []string{"Something happened"},
 		},
 	}

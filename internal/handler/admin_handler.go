@@ -14,10 +14,10 @@ import (
 )
 
 type AdminHandler struct {
-	service        *service.CommentService
-	adminPage      *template.Template
-	passwordHash   string
-	logger         *slog.Logger
+	service      *service.CommentService
+	adminPage    *template.Template
+	passwordHash string
+	logger       *slog.Logger
 }
 
 type AdminHandlerDependencies struct {

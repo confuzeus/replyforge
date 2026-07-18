@@ -58,7 +58,7 @@ func TestSanitizer_Sanitize(t *testing.T) {
 		{
 			name:     "NFC normalizes combining characters",
 			input:    "e\u0301", // e + combining acute accent (NFD)
-			expected: "\u00e9",   // é precomposed (NFC)
+			expected: "\u00e9",  // é precomposed (NFC)
 		},
 		{
 			name:     "empty string",

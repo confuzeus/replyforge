@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net"
@@ -52,6 +53,13 @@ func (n *EmailNotifier) Send(ctx context.Context, commentID int64) error {
 		return fmt.Errorf("creating SMTP client: %w", err)
 	}
 	defer client.Close()
+
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		tlsConfig := &tls.Config{ServerName: n.host}
+		if err := client.StartTLS(tlsConfig); err != nil {
+			return fmt.Errorf("STARTTLS: %w", err)
+		}
+	}
 
 	if n.username != "" && n.password != "" {
 		auth := smtp.PlainAuth("", n.username, n.password, n.host)

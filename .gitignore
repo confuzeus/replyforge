@@ -38,3 +38,4 @@ bin/
 
 
 compose.production.yml
+.env.production

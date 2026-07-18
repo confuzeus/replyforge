@@ -35,3 +35,6 @@ bin/
 # .idea/
 # .vscode/
 .kilo/plans
+
+
+compose.production.yml

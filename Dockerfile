@@ -19,13 +19,14 @@ RUN useradd -m -u 1000 -s /bin/bash replyforge
 WORKDIR /app
 COPY --from=builder /build/server .
 
-RUN mkdir -p /app/data && chown -R replyforge:replyforge /app
+COPY docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-USER replyforge
+RUN chown -R replyforge:replyforge /app
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["/app/server"]
+ENTRYPOINT ["/entrypoint.sh"]

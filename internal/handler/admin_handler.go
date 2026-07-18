@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/confuzeus/replyforge/internal/auth"
 	"github.com/confuzeus/replyforge/internal/model"
@@ -67,7 +68,21 @@ func (h *AdminHandler) ListAll(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	result, err := h.service.ListAll(r.Context(), params)
+	password := extractBearerToken(r.Header.Get("Authorization"))
+	var result *service.ListResult
+	var err error
+
+	if password != "" && h.passwordHash != "" {
+		ok, verifyErr := auth.VerifyPassword(password, h.passwordHash)
+		if verifyErr != nil || !ok {
+			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid password", nil)
+			return
+		}
+		result, err = h.service.ListAll(r.Context(), params)
+	} else {
+		result, err = h.service.List(r.Context(), params)
+	}
+
 	if err != nil {
 		h.writeError(w, err)
 		return
@@ -84,6 +99,14 @@ func (h *AdminHandler) ListAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func extractBearerToken(header string) string {
+	const prefix = "Bearer "
+	if !strings.HasPrefix(header, prefix) {
+		return ""
+	}
+	return strings.TrimSpace(header[len(prefix):])
 }
 
 func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) {

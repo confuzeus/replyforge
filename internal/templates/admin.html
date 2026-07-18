@@ -81,6 +81,10 @@ tr:hover { background: #f9f9f9; }
       <label for="list-post">Filter by Post ID (optional)</label>
       <input type="text" id="list-post" x-model="listPostID" placeholder="Leave empty to show all" @keyup.enter="listComments()">
     </div>
+    <div class="form-group">
+      <label for="list-password">Admin Password (optional, shows unapproved)</label>
+      <input type="password" id="list-password" x-model="listPassword" placeholder="Enter password to see unapproved comments" @keyup.enter="listComments()">
+    </div>
     <button class="btn" :class="{ active: true }" @click="listComments()">Refresh List</button>
 
     <div x-show="loading" class="loading">Loading...</div>
@@ -167,6 +171,7 @@ function adminApp() {
 
     getID: '',
     listPostID: '',
+    listPassword: '',
     listData: [],
     listPage: 1,
     listTotal: 0,
@@ -218,7 +223,11 @@ function adminApp() {
         if (this.listPostID) params.set('post_id', this.listPostID);
         params.set('page', this.listPage);
         params.set('per_page', '20');
-        const data = await this.apiFetch('/api/v1/admin/comments?' + params.toString());
+        const opts = {};
+        if (this.listPassword) {
+          opts.headers = { 'Authorization': 'Bearer ' + this.listPassword };
+        }
+        const data = await this.apiFetch('/api/v1/admin/comments?' + params.toString(), opts);
         this.listData = data.data;
         this.listTotal = data.pagination.total;
         this.listTotalPages = data.pagination.total_pages;

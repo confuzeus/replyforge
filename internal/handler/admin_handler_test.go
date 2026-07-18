@@ -87,8 +87,8 @@ func TestAdminListAll_Success(t *testing.T) {
 
 	var resp model.ListCommentsResponse
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
-	assert.Len(t, resp.Data, 2)
-	assert.Equal(t, 2, resp.Pagination.Total)
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, 1, resp.Pagination.Total)
 }
 
 func TestAdminListAll_FilterByPost(t *testing.T) {
@@ -125,6 +125,70 @@ func TestAdminListAll_EmptyResult(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
 	assert.Empty(t, resp.Data)
 	assert.Equal(t, 0, resp.Pagination.Total)
+}
+
+func TestAdminListAll_WithValidPassword(t *testing.T) {
+	hash, err := auth.GenerateHash("admin-pass")
+	require.NoError(t, err)
+
+	db := setupTestDB(t)
+	handler := newTestAdminHandler(t, db, hash)
+
+	seedApprovedComment(t, db, "post-1", "Alice", "First")
+	seedUnapproved(t, db)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/comments", nil)
+	req.Header.Set("Authorization", "Bearer admin-pass")
+	rec := httptest.NewRecorder()
+
+	handler.ListAll(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp model.ListCommentsResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	assert.Len(t, resp.Data, 2)
+	assert.Equal(t, 2, resp.Pagination.Total)
+}
+
+func TestAdminListAll_WithWrongPassword(t *testing.T) {
+	hash, err := auth.GenerateHash("admin-pass")
+	require.NoError(t, err)
+
+	db := setupTestDB(t)
+	handler := newTestAdminHandler(t, db, hash)
+
+	seedApprovedComment(t, db, "post-1", "Alice", "First")
+	seedUnapproved(t, db)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/comments", nil)
+	req.Header.Set("Authorization", "Bearer wrong-pass")
+	rec := httptest.NewRecorder()
+
+	handler.ListAll(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestAdminListAll_NoPasswordConfigured(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestAdminHandler(t, db, "")
+
+	seedApprovedComment(t, db, "post-1", "Alice", "First")
+	seedUnapproved(t, db)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/comments", nil)
+	req.Header.Set("Authorization", "Bearer anything")
+	rec := httptest.NewRecorder()
+
+	handler.ListAll(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp model.ListCommentsResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	assert.Len(t, resp.Data, 1)
+	assert.Equal(t, 1, resp.Pagination.Total)
 }
 
 func TestAdminGetByID_Approved(t *testing.T) {

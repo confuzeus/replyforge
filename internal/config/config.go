@@ -25,6 +25,13 @@ type Config struct {
 	ShutdownTimeout    time.Duration
 	Version            string
 	AdminPasswordHash  string
+
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+	SMTPFrom     string
+	SMTPTo       string
 }
 
 func Load() *Config {
@@ -49,6 +56,13 @@ func Load() *Config {
 		ShutdownTimeout:    envOrDefaultDuration("SHUTDOWN_TIMEOUT", 30*time.Second),
 		Version:            version,
 		AdminPasswordHash:  os.Getenv("ADMIN_PASSWORD_HASH"),
+
+		SMTPHost:     os.Getenv("SMTP_HOST"),
+		SMTPPort:     envOrDefaultInt("SMTP_PORT", 587),
+		SMTPUsername: os.Getenv("SMTP_USERNAME"),
+		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+		SMTPFrom:     os.Getenv("SMTP_FROM"),
+		SMTPTo:       os.Getenv("SMTP_TO"),
 	}
 
 	return cfg

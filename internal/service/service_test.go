@@ -29,6 +29,18 @@ func (s *stubTurnstileVerifier) Verify(_ context.Context, _, _ string) (bool, er
 	return s.ok, s.err
 }
 
+type stubEmailNotifier struct {
+	sent chan int64
+	err  error
+}
+
+func (s *stubEmailNotifier) Send(_ context.Context, id int64) error {
+	if s.sent != nil {
+		s.sent <- id
+	}
+	return s.err
+}
+
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite3", ":memory:?_journal_mode=WAL&_foreign_keys=on")
@@ -40,11 +52,12 @@ func setupTestDB(t *testing.T) *sql.DB {
 func newTestService(t *testing.T, db *sql.DB, turnstileOK bool) *CommentService {
 	t.Helper()
 	return NewCommentService(ServiceDependencies{
-		Repository:   repository.NewCommentRepository(db),
-		DisplayIDGen: model.NewDisplayIDGenerator(),
-		Turnstile:    &stubTurnstileVerifier{ok: turnstileOK},
-		Sanitizer:    sanitizer.NewSanitizer(),
-		Logger:       slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		Repository:     repository.NewCommentRepository(db),
+		DisplayIDGen:   model.NewDisplayIDGenerator(),
+		Turnstile:      &stubTurnstileVerifier{ok: turnstileOK},
+		Sanitizer:      sanitizer.NewSanitizer(),
+		Logger:         slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		EmailNotifier:  nil,
 	})
 }
 
@@ -153,6 +166,65 @@ func TestCreate_TurnstileError(t *testing.T) {
 	var svcErr *ServiceError
 	assert.True(t, errors.As(err, &svcErr))
 	assert.Equal(t, "TURNSTILE_FAILED", svcErr.Code)
+}
+
+func TestCreate_SendsEmailNotification(t *testing.T) {
+	db := setupTestDB(t)
+	notifier := &stubEmailNotifier{sent: make(chan int64, 1)}
+	svc := NewCommentService(ServiceDependencies{
+		Repository:     repository.NewCommentRepository(db),
+		DisplayIDGen:   model.NewDisplayIDGenerator(),
+		Turnstile:      &stubTurnstileVerifier{ok: true},
+		Sanitizer:      sanitizer.NewSanitizer(),
+		Logger:         slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		EmailNotifier:  notifier,
+	})
+
+	_, err := svc.Create(context.Background(), CreateInput{
+		PostID:         "post-1",
+		AuthorName:     "Alice",
+		Body:           "Hello world",
+		TurnstileToken: "valid-token",
+		ClientIP:       "127.0.0.1",
+		UserAgent:      "test-agent",
+	})
+	require.NoError(t, err)
+
+	select {
+	case id := <-notifier.sent:
+		assert.Positive(t, id)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for email notification")
+	}
+}
+
+func TestCreate_NoEmailOnTurnstileFail(t *testing.T) {
+	db := setupTestDB(t)
+	notifier := &stubEmailNotifier{sent: make(chan int64, 1)}
+	svc := NewCommentService(ServiceDependencies{
+		Repository:     repository.NewCommentRepository(db),
+		DisplayIDGen:   model.NewDisplayIDGenerator(),
+		Turnstile:      &stubTurnstileVerifier{ok: false},
+		Sanitizer:      sanitizer.NewSanitizer(),
+		Logger:         slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		EmailNotifier:  notifier,
+	})
+
+	_, err := svc.Create(context.Background(), CreateInput{
+		PostID:         "post-1",
+		AuthorName:     "Alice",
+		Body:           "Hello world",
+		TurnstileToken: "bad-token",
+		ClientIP:       "127.0.0.1",
+		UserAgent:      "test-agent",
+	})
+	require.Error(t, err)
+
+	select {
+	case <-notifier.sent:
+		t.Fatal("email should not have been sent on turnstile failure")
+	case <-time.After(100 * time.Millisecond):
+	}
 }
 
 func TestCreate_SanitizedFields(t *testing.T) {

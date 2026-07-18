@@ -17,21 +17,27 @@ type turnstileVerifier interface {
 	Verify(ctx context.Context, token, remoteIP string) (bool, error)
 }
 
+type emailNotifier interface {
+	Send(ctx context.Context, commentID int64) error
+}
+
 type ServiceDependencies struct {
-	Repository   *repository.CommentRepository
-	DisplayIDGen *model.DisplayIDGenerator
-	Turnstile    turnstileVerifier
-	Sanitizer    *sanitizer.Sanitizer
-	Logger       *slog.Logger
+	Repository     *repository.CommentRepository
+	DisplayIDGen   *model.DisplayIDGenerator
+	Turnstile      turnstileVerifier
+	Sanitizer      *sanitizer.Sanitizer
+	Logger         *slog.Logger
+	EmailNotifier  emailNotifier
 }
 
 type CommentService struct {
-	repo         *repository.CommentRepository
-	displayIDGen *model.DisplayIDGenerator
-	turnstile    turnstileVerifier
-	sanitizer    *sanitizer.Sanitizer
-	mu           sync.Mutex
-	logger       *slog.Logger
+	repo          *repository.CommentRepository
+	displayIDGen  *model.DisplayIDGenerator
+	turnstile     turnstileVerifier
+	sanitizer     *sanitizer.Sanitizer
+	emailNotifier emailNotifier
+	mu            sync.Mutex
+	logger        *slog.Logger
 }
 
 type CreateInput struct {
@@ -77,11 +83,12 @@ func (e *ServiceError) Unwrap() error {
 
 func NewCommentService(deps ServiceDependencies) *CommentService {
 	return &CommentService{
-		repo:         deps.Repository,
-		displayIDGen: deps.DisplayIDGen,
-		turnstile:    deps.Turnstile,
-		sanitizer:    deps.Sanitizer,
-		logger:       deps.Logger,
+		repo:          deps.Repository,
+		displayIDGen:  deps.DisplayIDGen,
+		turnstile:     deps.Turnstile,
+		sanitizer:     deps.Sanitizer,
+		emailNotifier: deps.EmailNotifier,
+		logger:        deps.Logger,
 	}
 }
 
@@ -147,6 +154,18 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 	)
 
 	middleware.CommentsCreatedTotal.Add(1)
+
+	if s.emailNotifier != nil {
+		go func(id int64) {
+			bgCtx := context.Background()
+			if err := s.emailNotifier.Send(bgCtx, id); err != nil {
+				s.logger.Error("failed to send email notification for comment",
+					"error", err,
+					"comment_id", id,
+				)
+			}
+		}(created.ID)
+	}
 
 	return mapToResponse(created), nil
 }

@@ -56,12 +56,21 @@ func main() {
 	turnstileVerifier := service.NewTurnstileVerifier(cfg.TurnstileSecretKey)
 	inputSanitizer := sanitizer.NewSanitizer()
 
+	emailNotifier := service.NewEmailNotifier(
+		cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword,
+		cfg.SMTPFrom, cfg.SMTPTo, logger,
+	)
+	if emailNotifier.Enabled() {
+		logger.Info("email notifications enabled", "host", cfg.SMTPHost, "port", cfg.SMTPPort)
+	}
+
 	commentService := service.NewCommentService(service.ServiceDependencies{
-		Repository:   repo,
-		DisplayIDGen: displayIDGen,
-		Turnstile:    turnstileVerifier,
-		Sanitizer:    inputSanitizer,
-		Logger:       logger,
+		Repository:     repo,
+		DisplayIDGen:   displayIDGen,
+		Turnstile:      turnstileVerifier,
+		Sanitizer:      inputSanitizer,
+		Logger:         logger,
+		EmailNotifier:  emailNotifier,
 	})
 
 	commentHandler := handler.NewCommentHandler(handler.HandlerDependencies{

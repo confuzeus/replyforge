@@ -29,6 +29,12 @@ Configuration is loaded from environment variables. Copy `.env.example` to `.env
 | `SHUTDOWN_TIMEOUT`     | `30s`              | Graceful shutdown deadline                  |
 | `VERSION`              | `dev`              | Version string reported in health checks    |
 | `ADMIN_PASSWORD_HASH`  | _(not set)_        | Argon2id PHC hash for the admin password    |
+| `SMTP_HOST`            | _(not set)_        | SMTP server hostname (empty = disabled)     |
+| `SMTP_PORT`            | `587`              | SMTP server port                            |
+| `SMTP_USERNAME`        | _(not set)_        | SMTP username for PLAIN auth                |
+| `SMTP_PASSWORD`        | _(not set)_        | SMTP password for PLAIN auth                |
+| `SMTP_FROM`            | _(not set)_        | Sender email address for notifications      |
+| `SMTP_TO`              | _(not set)_        | Recipient email address for notifications   |
 
 ## API Endpoints
 
@@ -70,6 +76,21 @@ Open `http://localhost:8080/admin` in a browser. Four actions are available:
 **Mutating operations** (toggle, delete) require the admin password sent in the request body: `{"password": "your-password"}`. The password is verified securely against the stored Argon2id hash with constant-time comparison.
 
 The list view shows all comments with pagination (20 per page), an excerpt of the body (first 100 characters), the approval status, and an optional post ID filter. Results are rendered inline using AlpineJS — no page reloads.
+
+### Email Notifications
+
+When a new comment is created, an email notification can be sent to the administrator if SMTP is configured. The email includes the comment's numeric ID and a brief message indicating a new comment requires moderation.
+
+| Variable | Description |
+| -------- | ----------- |
+| `SMTP_HOST` | SMTP server hostname. Leave empty to disable email notifications entirely. |
+| `SMTP_PORT` | SMTP server port (default `587`). |
+| `SMTP_USERNAME` | Username for PLAIN authentication against the SMTP server. |
+| `SMTP_PASSWORD` | Password for SMTP authentication. |
+| `SMTP_FROM` | The sender address used in the `From` header of notification emails. |
+| `SMTP_TO` | The recipient address where notification emails are delivered. |
+
+The email is sent **asynchronously** — the HTTP response is returned immediately, and failures are logged but never propagated to the client. If `SMTP_HOST` is empty, notification sending is silently skipped.
 
 ### Health Check Response
 

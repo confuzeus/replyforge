@@ -25,3 +25,9 @@ run: build
 # generate an Argon2id password hash for the admin interface
 hash:
     go run ./cmd/generate-hash
+
+build-image:
+    docker build -t dockershepherd/replyforge:dev .
+
+push-image:
+    docker push dockershepherd/replyforge:dev

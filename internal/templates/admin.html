@@ -88,6 +88,18 @@ tr:hover { background: #f9f9f9; }
           <div class="result-item"><span class="label">Approved:</span> <span x-text="result.approved ? 'Yes' : 'No'"></span></div>
           <div class="result-item"><span class="label">Created:</span> <span x-text="result.created_at"></span></div>
         </div>
+        <div x-show="result" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <button class="btn" :class="{ active: !result.approved }"
+            x-text="toggleInProgress ? (result.approved ? 'Rejecting...' : 'Approving...') : (result.approved ? 'Reject' : 'Approve')"
+            :disabled="toggleInProgress"
+            @click="toggleApprovalForFetched()">
+          </button>
+          <button class="btn danger"
+            x-text="deleteInProgress ? 'Deleting...' : 'Delete'"
+            :disabled="deleteInProgress"
+            @click="deleteFetchedComment()">
+          </button>
+        </div>
       </div>
 
       <!-- List Comments -->
@@ -111,6 +123,7 @@ tr:hover { background: #f9f9f9; }
                 <th>Post ID</th>
                 <th>Approved</th>
                 <th>Excerpt</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -121,6 +134,21 @@ tr:hover { background: #f9f9f9; }
                   <td x-text="item.post_id"></td>
                   <td><span class="status" :class="item.approved ? 'approved' : 'unapproved'" x-text="item.approved ? 'Yes' : 'No'"></span></td>
                   <td x-text="excerpt(item.body)"></td>
+                  <td>
+                    <div style="display: flex; gap: 0.25rem;">
+                      <button class="btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;"
+                        :class="{ active: !item.approved }"
+                        x-text="item.approved ? 'Reject' : 'Approve'"
+                        :disabled="toggleInProgressID === item.id"
+                        @click="toggleApprovalForList(item)">
+                      </button>
+                      <button class="btn danger" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;"
+                        x-text="deleteInProgressID === item.id ? 'Deleting...' : 'Delete'"
+                        :disabled="deleteInProgressID === item.id"
+                        @click="deleteCommentForList(item)">
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               </template>
             </tbody>
@@ -176,6 +204,10 @@ function adminApp() {
     alertMsg: '',
     error: '',
     loading: false,
+    toggleInProgress: false,
+    deleteInProgress: false,
+    toggleInProgressID: null,
+    deleteInProgressID: null,
 
     init() {
       this.checkSession();
@@ -330,6 +362,71 @@ function adminApp() {
         this.result = data;
       } catch (e) {
         if (e.message !== 'Unauthorized') this.error = e.message;
+      }
+    },
+
+    async toggleApprovalForFetched() {
+      this.clearAlerts();
+      if (!this.result) return;
+      this.toggleInProgress = true;
+      try {
+        const data = await this.apiFetch('/api/v1/admin/comments/' + this.result.id + '/toggle-approval', {
+          method: 'POST',
+        });
+        this.result = data.data;
+      } catch (e) {
+        if (e.message !== 'Unauthorized') this.error = e.message;
+      } finally {
+        this.toggleInProgress = false;
+      }
+    },
+
+    async deleteFetchedComment() {
+      this.clearAlerts();
+      if (!this.result) return;
+      this.deleteInProgress = true;
+      try {
+        await this.apiFetch('/api/v1/admin/comments/' + this.result.id, {
+          method: 'DELETE',
+        });
+        this.alertMsg = 'Comment deleted';
+        this.result = null;
+      } catch (e) {
+        if (e.message !== 'Unauthorized') this.error = e.message;
+      } finally {
+        this.deleteInProgress = false;
+      }
+    },
+
+    async toggleApprovalForList(item) {
+      this.clearAlerts();
+      this.toggleInProgressID = item.id;
+      try {
+        await this.apiFetch('/api/v1/admin/comments/' + item.id + '/toggle-approval', {
+          method: 'POST',
+        });
+        await this.listComments();
+        this.alertMsg = 'Comment ' + (item.approved ? 'rejected' : 'approved');
+      } catch (e) {
+        if (e.message !== 'Unauthorized') this.error = e.message;
+      } finally {
+        this.toggleInProgressID = null;
+      }
+    },
+
+    async deleteCommentForList(item) {
+      this.clearAlerts();
+      this.deleteInProgressID = item.id;
+      try {
+        await this.apiFetch('/api/v1/admin/comments/' + item.id, {
+          method: 'DELETE',
+        });
+        await this.listComments();
+        this.alertMsg = 'Comment deleted';
+      } catch (e) {
+        if (e.message !== 'Unauthorized') this.error = e.message;
+      } finally {
+        this.deleteInProgressID = null;
       }
     },
 

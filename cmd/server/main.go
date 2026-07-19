@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/confuzeus/replyforge/internal/auth"
 	"github.com/confuzeus/replyforge/internal/config"
 	"github.com/confuzeus/replyforge/internal/handler"
 	"github.com/confuzeus/replyforge/internal/middleware"
@@ -78,11 +79,14 @@ func main() {
 		Logger:  logger,
 	})
 
+	sessionManager := auth.NewSessionManager(cfg.AdminSessionTTL, cfg.AdminSessionSecure)
+
 	adminHandler := handler.NewAdminHandler(handler.AdminHandlerDependencies{
-		Service:      commentService,
-		AdminPage:    templates.AdminPage,
-		PasswordHash: cfg.AdminPasswordHash,
-		Logger:       logger,
+		Service:        commentService,
+		AdminPage:      templates.AdminPage,
+		PasswordHash:   cfg.AdminPasswordHash,
+		SessionManager: sessionManager,
+		Logger:         logger,
 	})
 
 	mux := http.NewServeMux()
@@ -147,6 +151,7 @@ func main() {
 			logger.Error("forced shutdown", "error", err)
 		}
 		rateLimiter.Stop()
+		sessionManager.Stop()
 		close(shutdownDone)
 	}()
 

@@ -39,9 +39,12 @@ func NewRateLimiter(requestsPerMinute, burst int, logger *slog.Logger) *RateLimi
 
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		isAdminMutating := (r.Method == http.MethodPost || r.Method == http.MethodDelete) &&
+		isCreateComment := r.Method == http.MethodPost && r.URL.Path == "/api/v1/comments"
+		isAdminMutation := (r.Method == http.MethodPost || r.Method == http.MethodDelete) &&
 			strings.HasPrefix(r.URL.Path, "/api/v1/admin/comments/")
-		if !(r.Method == http.MethodPost && r.URL.Path == "/api/v1/comments") && !isAdminMutating {
+		isAdminLogin := r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/login"
+
+		if !isCreateComment && !isAdminMutation && !isAdminLogin {
 			next.ServeHTTP(w, r)
 			return
 		}

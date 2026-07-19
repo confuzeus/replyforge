@@ -25,6 +25,8 @@ type Config struct {
 	ShutdownTimeout    time.Duration
 	Version            string
 	AdminPasswordHash  string
+	AdminSessionTTL    time.Duration
+	AdminSessionSecure bool
 
 	SMTPHost     string
 	SMTPPort     int
@@ -56,6 +58,8 @@ func Load() *Config {
 		ShutdownTimeout:    envOrDefaultDuration("SHUTDOWN_TIMEOUT", 30*time.Second),
 		Version:            version,
 		AdminPasswordHash:  os.Getenv("ADMIN_PASSWORD_HASH"),
+		AdminSessionTTL:    envOrDefaultDuration("ADMIN_SESSION_TTL", 24*time.Hour),
+		AdminSessionSecure: envOrDefaultBool("ADMIN_SESSION_SECURE", true),
 
 		SMTPHost:     os.Getenv("SMTP_HOST"),
 		SMTPPort:     envOrDefaultInt("SMTP_PORT", 587),
@@ -115,6 +119,19 @@ func envOrDefaultInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func envOrDefaultBool(key string, fallback bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	switch strings.ToLower(v) {
+	case "true", "1", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func envOrDefaultDuration(key string, fallback time.Duration) time.Duration {

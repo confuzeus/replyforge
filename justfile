@@ -1,3 +1,5 @@
+tag := `git rev-parse --short HEAD`
+
 # default recipe: show available commands
 default:
     @just --list
@@ -27,7 +29,7 @@ hash:
     go run ./cmd/generate-hash
 
 build-image:
-    docker build -t dockershepherd/replyforge:dev .
+    docker build -t dockershepherd/replyforge:dev-{{tag}} .
 
 push-image:
-    docker push dockershepherd/replyforge:dev
+    docker push dockershepherd/replyforge:dev-{{tag}}

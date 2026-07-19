@@ -11,7 +11,7 @@ RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /build/server ./cmd/server
 
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gosu && \
     rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1000 -s /bin/bash replyforge

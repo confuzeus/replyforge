@@ -1,25 +1,23 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/confuzeus/replyforge/internal/auth"
+	"golang.org/x/term"
 )
 
 func main() {
 	fmt.Print("Enter password: ")
-	reader := bufio.NewReader(os.Stdin)
-	password, err := reader.ReadString('\n')
+	passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error reading password:", err)
 		os.Exit(1)
 	}
-	password = strings.TrimSuffix(password, "\n")
-	password = strings.TrimSuffix(password, "\r")
 
+	password := string(passwordBytes)
 	if password == "" {
 		fmt.Fprintln(os.Stderr, "password cannot be empty")
 		os.Exit(1)

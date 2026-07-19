@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -54,8 +56,9 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		if !limiter.Allow() {
 			RateLimitHitsTotal.Add(1)
 			if rl.logger != nil {
+				hash := sha256.Sum256([]byte(ip))
 				rl.logger.Warn("rate limit exceeded",
-					"client_ip", ip,
+					"client_ip", fmt.Sprintf("%x", hash),
 					"path", r.URL.Path,
 				)
 			}

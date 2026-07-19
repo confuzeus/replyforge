@@ -36,6 +36,7 @@ func (h *CommentHandler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 16384)
 	var req model.CreateCommentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid JSON body", nil)
@@ -142,6 +143,7 @@ func (h *CommentHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 func writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(v)
 }
@@ -151,6 +153,7 @@ func writeError(w http.ResponseWriter, statusCode int, code, message string, det
 		middleware.ValidationErrorsTotal.Add(1)
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(statusCode)
 
 	resp := model.ErrorResponse{

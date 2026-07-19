@@ -92,6 +92,15 @@ func (r *CommentRepository) FindByID(ctx context.Context, id int64) (*Comment, e
 	return scanComment(row)
 }
 
+func (r *CommentRepository) FindByIDApproved(ctx context.Context, id int64) (*Comment, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT id, display_id, post_id, author_name, body, approved,
+		 ip_address, user_agent, turnstile_verified, created_at, updated_at
+		 FROM comments WHERE id = ? AND approved = 1`, id,
+	)
+	return scanComment(row)
+}
+
 func (r *CommentRepository) FindApproved(ctx context.Context, params QueryParams) ([]*Comment, int, error) {
 	where := "WHERE approved = 1"
 	args := []interface{}{}

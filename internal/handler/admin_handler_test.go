@@ -147,7 +147,7 @@ func TestAdminLogin_NoPasswordConfigured(t *testing.T) {
 
 	handler.Login(rec, req)
 
-	assert.Equal(t, http.StatusNotImplemented, rec.Code)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func TestAdminLogin_InvalidJSON(t *testing.T) {

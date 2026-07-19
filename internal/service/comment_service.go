@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/confuzeus/replyforge/internal/middleware"
 	"github.com/confuzeus/replyforge/internal/model"
@@ -157,7 +158,8 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 
 	if s.emailNotifier != nil {
 		go func(id int64) {
-			bgCtx := context.Background()
+			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 			if err := s.emailNotifier.Send(bgCtx, id); err != nil {
 				s.logger.Error("failed to send email notification for comment",
 					"error", err,
@@ -167,7 +169,7 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 		}(created.ID)
 	}
 
-	return mapToResponse(created), nil
+	return s.mapToResponse(created), nil
 }
 
 func (s *CommentService) List(ctx context.Context, params ListParams) (*ListResult, error) {
@@ -199,7 +201,7 @@ func (s *CommentService) List(ctx context.Context, params ListParams) (*ListResu
 
 	responses := make([]*model.CommentResponse, len(comments))
 	for i, c := range comments {
-		responses[i] = mapToResponse(c)
+		responses[i] = s.mapToResponse(c)
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(params.PerPage)))
@@ -214,15 +216,11 @@ func (s *CommentService) List(ctx context.Context, params ListParams) (*ListResu
 }
 
 func (s *CommentService) GetByID(ctx context.Context, id int64) (*model.CommentResponse, error) {
-	comment, err := s.repo.FindByID(ctx, id)
+	comment, err := s.repo.FindByIDApproved(ctx, id)
 	if err != nil {
 		return nil, &ServiceError{Code: "NOT_FOUND", Message: "Comment not found", Err: err}
 	}
-	if !comment.Approved {
-		return nil, &ServiceError{Code: "NOT_FOUND", Message: "Comment not found"}
-	}
-
-	return mapToResponse(comment), nil
+	return s.mapToResponse(comment), nil
 }
 
 func (s *CommentService) ListAll(ctx context.Context, params ListParams) (*ListResult, error) {
@@ -254,7 +252,7 @@ func (s *CommentService) ListAll(ctx context.Context, params ListParams) (*ListR
 
 	responses := make([]*model.CommentResponse, len(comments))
 	for i, c := range comments {
-		responses[i] = mapToResponse(c)
+		responses[i] = s.mapToResponse(c)
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(params.PerPage)))
@@ -273,7 +271,7 @@ func (s *CommentService) GetByIDUnrestricted(ctx context.Context, id int64) (*mo
 	if err != nil {
 		return nil, &ServiceError{Code: "NOT_FOUND", Message: "Comment not found", Err: err}
 	}
-	return mapToResponse(comment), nil
+	return s.mapToResponse(comment), nil
 }
 
 func (s *CommentService) ToggleApproval(ctx context.Context, id int64) (*model.CommentResponse, error) {
@@ -302,7 +300,7 @@ func (s *CommentService) ToggleApproval(ctx context.Context, id int64) (*model.C
 		"new_approved", newApproved,
 	)
 
-	return mapToResponse(updated), nil
+	return s.mapToResponse(updated), nil
 }
 
 func (s *CommentService) Delete(ctx context.Context, id int64) error {
@@ -320,13 +318,13 @@ func (s *CommentService) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func mapToResponse(c *repository.Comment) *model.CommentResponse {
+func (s *CommentService) mapToResponse(c *repository.Comment) *model.CommentResponse {
 	return &model.CommentResponse{
 		ID:         c.ID,
 		DisplayID:  c.DisplayID,
 		PostID:     c.PostID,
-		AuthorName: c.AuthorName,
-		Body:       c.Body,
+		AuthorName: s.sanitizer.Sanitize(c.AuthorName),
+		Body:       s.sanitizer.Sanitize(c.Body),
 		Approved:   c.Approved,
 		CreatedAt:  c.CreatedAt,
 	}

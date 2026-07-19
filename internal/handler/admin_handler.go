@@ -59,7 +59,8 @@ func (h *AdminHandler) ServePage(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.passwordHash == "" {
-		writeError(w, http.StatusNotImplemented, "NOT_CONFIGURED", "Admin password is not configured", nil)
+		h.logger.Warn("admin password not configured — login endpoint returning unauthorized")
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid password", nil)
 		return
 	}
 

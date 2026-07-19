@@ -185,7 +185,6 @@ func healthHandler(db *sql.DB, version string, startTime time.Time) http.Handler
 		}
 		if dbErr != nil {
 			dbCheck["status"] = "disconnected"
-			dbCheck["error"] = dbErr.Error()
 			result["status"] = "degraded"
 		}
 

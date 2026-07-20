@@ -1,6 +1,7 @@
 package sanitizer
 
 import (
+	"html"
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
@@ -18,7 +19,9 @@ func NewSanitizer() *Sanitizer {
 }
 
 func (s *Sanitizer) Sanitize(input string) string {
-	sanitized := s.policy.Sanitize(input)
+	sanitized := html.UnescapeString(input)
+	sanitized = s.policy.Sanitize(sanitized)
+	sanitized = html.UnescapeString(sanitized)
 	sanitized = strings.TrimSpace(sanitized)
 	sanitized = norm.NFC.String(sanitized)
 	sanitized = collapseSpaces(sanitized)

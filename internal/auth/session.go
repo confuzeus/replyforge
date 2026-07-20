@@ -115,7 +115,9 @@ func (sm *SessionManager) AuthMiddleware(next http.Handler) http.Handler {
 		if token == "" || !sm.ValidateSession(token) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(model.ErrorResponse{
+			enc := json.NewEncoder(w)
+			enc.SetEscapeHTML(false)
+			enc.Encode(model.ErrorResponse{
 				Error: model.ErrorDetail{
 					Code:    "UNAUTHORIZED",
 					Message: "Not authenticated",

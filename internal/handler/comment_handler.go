@@ -145,7 +145,9 @@ func writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(v)
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	enc.Encode(v)
 }
 
 func writeError(w http.ResponseWriter, statusCode int, code, message string, details []model.FieldError) {
@@ -164,7 +166,9 @@ func writeError(w http.ResponseWriter, statusCode int, code, message string, det
 		},
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	enc.Encode(resp)
 }
 
 func serviceErrorToHTTP(svcErr *service.ServiceError) (int, string) {

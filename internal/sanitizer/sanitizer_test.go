@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSanitizer_Sanitize(t *testing.T) {
@@ -18,6 +19,11 @@ func TestSanitizer_Sanitize(t *testing.T) {
 		{
 			name:     "strips script tags including content",
 			input:    "<script>alert('xss')</script>",
+			expected: "",
+		},
+		{
+			name:     "strips entity-encoded script tags",
+			input:    "&#60;script&#62;alert(1)&#60;/script&#62;",
 			expected: "",
 		},
 		{
@@ -69,6 +75,31 @@ func TestSanitizer_Sanitize(t *testing.T) {
 			name:     "whitespace only",
 			input:    "   \t\n   ",
 			expected: "",
+		},
+		{
+			name:     "preserves single quotes",
+			input:    "I'm happy",
+			expected: "I'm happy",
+		},
+		{
+			name:     "preserves ampersand in text",
+			input:    "A & B",
+			expected: "A & B",
+		},
+		{
+			name:     "preserves angle brackets in plain text",
+			input:    "x < y > z",
+			expected: "x < y > z",
+		},
+		{
+			name:     "preserves double quotes",
+			input:    `"quoted text"`,
+			expected: `"quoted text"`,
+		},
+		{
+			name:     "strips HTML but preserves text with special chars",
+			input:    `<b>Bold</b> & <i>"Italic"</i>`,
+			expected: `Bold & "Italic"`,
 		},
 		{
 			name:     "plain text passes through",
@@ -136,4 +167,37 @@ func TestSanitizer_MixedAttackVector(t *testing.T) {
 	input := "\t\n  <script>alert('xss')</script>  \x00<b>bold</b>\n\t"
 	result := s.Sanitize(input)
 	assert.Equal(t, "bold", result)
+}
+
+func TestSanitizer_CorrectsHTMLEntitiesOnReread(t *testing.T) {
+	s := NewSanitizer()
+
+	result := s.Sanitize("I&#39;m happy")
+	assert.Equal(t, "I'm happy", result)
+
+	result = s.Sanitize("A &amp; B")
+	assert.Equal(t, "A & B", result)
+
+	result = s.Sanitize("x &lt; y &gt; z")
+	assert.Equal(t, "x < y > z", result)
+}
+
+func TestSanitizer_SanitizeRoundTrip(t *testing.T) {
+	s := NewSanitizer()
+
+	inputs := []string{
+		"I'm happy",
+		"A & B",
+		`"quoted text"`,
+		"x < y > z",
+		"Jöhn Döe <b>Bold</b> & <i>Italic</i>",
+	}
+
+	for _, input := range inputs {
+		first := s.Sanitize(input)
+		second := s.Sanitize(first)
+		assert.Equal(t, first, second, "Sanitize should be idempotent for input: %q", input)
+		require.NotContains(t, first, "&#", "output should not contain HTML entities for input: %q", input)
+		require.NotContains(t, first, "&amp;", "output should not contain HTML entities for input: %q", input)
+	}
 }

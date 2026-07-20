@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -304,6 +305,58 @@ func TestGet_InvalidID(t *testing.T) {
 	var resp model.ErrorResponse
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
 	assert.Equal(t, "VALIDATION_ERROR", resp.Error.Code)
+}
+
+func TestCreate_SpecialCharactersPreserved(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandler(t, db, true)
+
+	body := fmt.Sprintf(
+		`{"post_id":"post-1","author_name":"O'Brien","body":%s,"turnstile_token":"valid"}`,
+		toJSONStr("I'm happy & it's a < b test"),
+	)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/comments", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.Create(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var resp map[string]json.RawMessage
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+
+	var data model.CommentResponse
+	require.NoError(t, json.Unmarshal(resp["data"], &data))
+	assert.Equal(t, "O'Brien", data.AuthorName)
+	assert.Equal(t, "I'm happy & it's a < b test", data.Body)
+	assert.NotContains(t, rec.Body.String(), "\\u0026")
+	assert.NotContains(t, rec.Body.String(), "&#39;")
+}
+
+func TestCreate_ResponseHasNoUnicodeEscapes(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandler(t, db, true)
+
+	body := fmt.Sprintf(
+		`{"post_id":"post-1","author_name":"Test","body":%s,"turnstile_token":"valid"}`,
+		toJSONStr("<html> & \"quotes\""),
+	)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/comments", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.Create(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	assert.NotContains(t, rec.Body.String(), "\\u003c")
+	assert.NotContains(t, rec.Body.String(), "\\u003e")
+	assert.NotContains(t, rec.Body.String(), "\\u0026")
+}
+
+func toJSONStr(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }
 
 func formatID(id int64) string {

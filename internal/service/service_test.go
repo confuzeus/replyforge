@@ -247,6 +247,42 @@ func TestCreate_SanitizedFields(t *testing.T) {
 	assert.NotEmpty(t, resp.Body)
 }
 
+func TestCreate_PreservesSpecialCharacters(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	resp, err := svc.Create(context.Background(), CreateInput{
+		PostID:         "post-1",
+		AuthorName:     "O'Brien & Co",
+		Body:           "I'm happy & it's a < b test",
+		TurnstileToken: "valid-token",
+		ClientIP:       "127.0.0.1",
+		UserAgent:      "test-agent",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "O'Brien & Co", resp.AuthorName)
+	assert.Equal(t, "I'm happy & it's a < b test", resp.Body)
+}
+
+func TestCreate_ExistingHTMLEntitiesCorrected(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestService(t, db, true)
+
+	resp, err := svc.Create(context.Background(), CreateInput{
+		PostID:         "post-1",
+		AuthorName:     "O&#39;Brien",
+		Body:           "I&#39;m &amp; happy",
+		TurnstileToken: "valid-token",
+		ClientIP:       "127.0.0.1",
+		UserAgent:      "test-agent",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "O'Brien", resp.AuthorName)
+	assert.Equal(t, "I'm & happy", resp.Body)
+}
+
 func TestList_Defaults(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newTestService(t, db, true)

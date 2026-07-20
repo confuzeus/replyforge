@@ -27,7 +27,9 @@ func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {
 					if !rw.wroteHeader {
 						w.Header().Set("Content-Type", "application/json")
 						w.WriteHeader(http.StatusInternalServerError)
-						json.NewEncoder(w).Encode(model.ErrorResponse{
+						enc := json.NewEncoder(w)
+						enc.SetEscapeHTML(false)
+						enc.Encode(model.ErrorResponse{
 							Error: model.ErrorDetail{
 								Code:    "INTERNAL_ERROR",
 								Message: "An unexpected error occurred",

@@ -198,7 +198,9 @@ func healthHandler(db *sql.DB, version string, startTime time.Time) http.Handler
 			statusCode = http.StatusServiceUnavailable
 		}
 		w.WriteHeader(statusCode)
-		json.NewEncoder(w).Encode(result)
+		enc := json.NewEncoder(w)
+		enc.SetEscapeHTML(false)
+		enc.Encode(result)
 	}
 }
 

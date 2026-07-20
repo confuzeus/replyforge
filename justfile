@@ -28,8 +28,10 @@ run: build
 hash:
     go run ./cmd/generate-hash
 
-build-image:
-    docker build -t dockershepherd/replyforge:dev-{{tag}} .
+build-dev-image:
+    docker build -t dockershepherd/replyforge:dev-{{ tag }} .
 
-push-image:
-    docker push dockershepherd/replyforge:dev-{{tag}}
+push-dev-image:
+    docker push dockershepherd/replyforge:dev-{{ tag }}
+
+release-dev-image: build-image push-image

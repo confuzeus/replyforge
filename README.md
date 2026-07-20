@@ -1,5 +1,5 @@
 <div style="display: flex; align-items: center; gap: 1rem">
-<img src="./assets/replyforge-logo.svg" alt="Reply Forge logo"/>
+<img src="./assets/replyforge-logo.svg" width="60" alt="Reply Forge logo"/>
 <h1>Reply Forge</h1>
 </div>
 

@@ -10,10 +10,24 @@ Readers submit comments through a Turnstile-protected API endpoint. Comments are
 
 ## Quick Start
 
+Deploy using Docker Compose:
+
 ```bash
-cp .env.example .env
-# Edit .env with your Turnstile secret key and desired config
-just build && just run
+name: replyforge
+
+volumes:
+  comments_data:
+
+services:
+  comments:
+    image: dockershepherd/replyforge:dev
+    env_file:
+      - path: ./.env.production
+        required: true
+    volumes:
+      - comments_data:/app/data
+    ports:
+      - 127.0.0.1:8080:8080
 ```
 
 ## Configuration

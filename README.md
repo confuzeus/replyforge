@@ -1,7 +1,6 @@
-<div style="display: flex; align-items: center; gap: 1rem">
 <img src="./assets/replyforge-logo.svg" width="60" alt="Reply Forge logo"/>
-<h1>Reply Forge</h1>
-</div>
+
+# Reply Forge
 
 A REST API service for managing blog comments with anti-spam protection via Cloudflare Turnstile. Comments are stored in SQLite and held for moderation before being served to readers.
 

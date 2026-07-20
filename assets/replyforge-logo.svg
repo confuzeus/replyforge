@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="replyForceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#0EA5E9" />
+    </linearGradient>
+  </defs>
+  <path fill="url(#replyForceGrad)" fill-rule="evenodd" clip-rule="evenodd" d="M400,76 H112 C72.3,76 40,108.3 40,148 V292 C40,331.7 72.3,364 112,364 H140 V428 C140,436.6 149.9,441.4 156.6,436 L240,364 H400 C439.7,364 472,331.7 472,292 V148 C472,108.3 439.7,76 400,76 Z M296,110 L266,200 H316 L216,330 L246,240 H196 Z" />
+</svg>

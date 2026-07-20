@@ -1,6 +1,10 @@
 # Reply Forge
 
-A REST API service for managing blog comments with anti-spam protection via Cloudflare Turnstile. The system stores comments in SQLite and serves approved comments to readers while protecting against automated spam.
+A REST API service for managing blog comments with anti-spam protection via Cloudflare Turnstile. Comments are stored in SQLite and held for moderation before being served to readers.
+
+## How It Works
+
+Readers submit comments through a Turnstile-protected API endpoint. Comments are created in an unapproved state and stored in SQLite. Approved comments are served publicly via read-only endpoints. An admin interface at `/admin` allows moderators to review, approve, and delete comments. Email notifications can be sent to the admin when new comments arrive.
 
 ## Quick Start
 
@@ -190,21 +194,7 @@ GET /api/v1/comments/{id}
 
 ## Admin Interface
 
-An HTML admin interface is available at `GET /admin` for managing comments. It uses a single-page design with AlpineJS loaded from CDN — no build pipeline required.
-
-### Setup
-
-Generate an Argon2id hash of your admin password:
-
-```bash
-just hash
-```
-
-Copy the output `ADMIN_PASSWORD_HASH=...` into your `.env` file. If `ADMIN_PASSWORD_HASH` is empty or unset, the interface still loads but mutating operations (toggle approval, delete) return `501 Not Implemented`.
-
-### Usage
-
-Open `http://localhost:8080/admin` in a browser. Four actions are available:
+An HTML admin interface for comment moderation is available at `GET /admin`. Generate an admin password hash with `just hash` and add `ADMIN_PASSWORD_HASH` to your `.env`. Four admin API endpoints are available:
 
 | Action            | Endpoint                                           | Auth Required         |
 | ----------------- | -------------------------------------------------- | --------------------- |
@@ -213,95 +203,16 @@ Open `http://localhost:8080/admin` in a browser. Four actions are available:
 | Toggle approval   | `POST /api/v1/admin/comments/{id}/toggle-approval` | Password in JSON body |
 | Delete a comment  | `DELETE /api/v1/admin/comments/{id}`               | Password in JSON body |
 
-**Reading operations** (get, list) require no authentication and work for _all_ comments regardless of approval state.
-
-**Mutating operations** (toggle, delete) require the admin password sent in the request body: `{"password": "your-password"}`. The password is verified securely against the stored Argon2id hash with constant-time comparison.
-
-The list view shows all comments with pagination (20 per page), an excerpt of the body (first 100 characters), the approval status, and an optional post ID filter. Results are rendered inline using AlpineJS — no page reloads.
-
-### Email Notifications
-
-When a new comment is created, an email notification can be sent to the administrator if SMTP is configured. The email includes the comment's numeric ID and a brief message indicating a new comment requires moderation.
-
-| Variable        | Description                                                                |
-| --------------- | -------------------------------------------------------------------------- |
-| `SMTP_HOST`     | SMTP server hostname. Leave empty to disable email notifications entirely. |
-| `SMTP_PORT`     | SMTP server port (default `587`).                                          |
-| `SMTP_USERNAME` | Username for PLAIN authentication against the SMTP server.                 |
-| `SMTP_PASSWORD` | Password for SMTP authentication.                                          |
-| `SMTP_FROM`     | The sender address used in the `From` header of notification emails.       |
-| `SMTP_TO`       | The recipient address where notification emails are delivered.             |
-
-The email is sent **asynchronously** — the HTTP response is returned immediately, and failures are logged but never propagated to the client. If `SMTP_HOST` is empty, notification sending is silently skipped.
-
-### Health Check Response
-
-```json
-{
-  "status": "healthy",
-  "version": "dev",
-  "uptime_seconds": 123.456,
-  "checks": {
-    "database": {
-      "status": "connected",
-      "response_ms": 2
-    }
-  }
-}
-```
-
-### Metrics
-
-Runtime metrics are exposed at `GET /debug/vars` in JSON format via `expvar`:
-
-| Metric                                 | Description                           |
-| -------------------------------------- | ------------------------------------- |
-| `comments_created_total`               | Total comment creation attempts       |
-| `turnstile_verifications_total`        | Total Turnstile verification attempts |
-| `turnstile_verifications_failed_total` | Failed Turnstile verifications        |
-| `rate_limit_hits_total`                | Rate limit violations                 |
-| `validation_errors_total`              | Input validation failures             |
-| `panics_total`                         | Recovered panics                      |
-
-## Structured Logging
-
-All log output is JSON-formatted via `log/slog`. Each request gets a unique `request_id` propagated via the `X-Request-ID` response header and logged in all request-scoped entries.
-
-## Graceful Shutdown
-
-The server handles `SIGINT` and `SIGTERM` for graceful shutdown:
-
-- Drains in-flight requests (up to `SHUTDOWN_TIMEOUT`, default 30s)
-- On a second signal, forces immediate shutdown
-- Stops rate limiter cleanup goroutine
-- Logs final metrics on shutdown
-
-## Docker
-
-### Build
-
-```bash
-docker build -t replyforge:latest .
-```
-
-### Run
-
-```bash
-docker run -d \
-  --name replyforge \
-  -p 8080:8080 \
-  -v $(pwd)/data:/app/data \
-  -e TURNSTILE_SECRET_KEY=your-secret-key \
-  -e ALLOWED_ORIGINS=https://exampleblog.com \
-  replyforge:latest
-```
-
 ### Docker Compose
+
+Available on [Docker Hub](https://hub.docker.com/repository/docker/dockershepherd/replyforge/general)
+
+Example:
 
 ```yaml
 services:
   replyforge:
-    build: .
+    image: dockershepherd/replyforge:dev-36f3fc4
     ports:
       - "8080:8080"
     volumes:

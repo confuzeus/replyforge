@@ -1,4 +1,5 @@
 tag := `git rev-parse --short HEAD`
+release_version := `git describe --tags --abbrev=0`
 
 # default recipe: show available commands
 default:
@@ -34,4 +35,16 @@ build-dev-image:
 push-dev-image:
     docker push dockershepherd/replyforge:dev-{{ tag }}
 
-release-dev-image: build-image push-image
+release-dev-image: build-dev-image push-dev-image
+
+# build the release docker image (tagged latest + git version)
+build-release-image:
+    docker build -t dockershepherd/replyforge:latest -t dockershepherd/replyforge:{{ release_version }} .
+
+# push the release docker image
+push-release-image:
+    docker push dockershepherd/replyforge:latest
+    docker push dockershepherd/replyforge:{{ release_version }}
+
+# build and push the release docker image
+release-image: build-release-image push-release-image

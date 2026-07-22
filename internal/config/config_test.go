@@ -68,8 +68,6 @@ func TestLoadFromEnv(t *testing.T) {
 	os.Setenv("WRITE_TIMEOUT", "15s")
 	os.Setenv("IDLE_TIMEOUT", "120s")
 	os.Setenv("SHUTDOWN_TIMEOUT", "10s")
-	os.Setenv("VERSION", "1.0.0-test")
-
 	cfg := Load()
 
 	if cfg.Port != "3000" {
@@ -105,8 +103,8 @@ func TestLoadFromEnv(t *testing.T) {
 	if cfg.ShutdownTimeout != 10*time.Second {
 		t.Errorf("ShutdownTimeout = %v, want 10s", cfg.ShutdownTimeout)
 	}
-	if cfg.Version != "1.0.0-test" {
-		t.Errorf("Version = %q, want %q", cfg.Version, "1.0.0-test")
+	if cfg.Version != "dev" {
+		t.Errorf("Version = %q, want %q", cfg.Version, "dev")
 	}
 }
 

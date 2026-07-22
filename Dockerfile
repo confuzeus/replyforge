@@ -1,5 +1,7 @@
 FROM golang:1.25-bookworm AS builder
 
+ARG VERSION=dev
+
 WORKDIR /build
 
 COPY go.mod go.sum ./
@@ -7,7 +9,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /build/server ./cmd/server
+RUN CGO_ENABLED=1 go build -ldflags="-s -w -X 'github.com/confuzeus/replyforge/internal/config.Version=${VERSION}'" -o /build/server ./cmd/server
 RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /build/hash-password ./cmd/generate-hash
 
 FROM debian:bookworm-slim

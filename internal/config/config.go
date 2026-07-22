@@ -36,13 +36,12 @@ type Config struct {
 	SMTPTo       string
 }
 
+var Version = "dev"
+
 func Load() *Config {
 	_ = godotenv.Load()
 
-	version := os.Getenv("VERSION")
-	if version == "" {
-		version = "dev"
-	}
+	version := Version
 
 	cfg := &Config{
 		Port:               envOrDefault("PORT", "8080"),

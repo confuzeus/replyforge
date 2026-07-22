@@ -1,5 +1,6 @@
 tag := `git rev-parse --short HEAD`
 release_version := `git describe --tags --abbrev=0`
+version := `git describe --tags --abbrev=0 2>/dev/null || echo "dev"`
 
 # default recipe: show available commands
 default:
@@ -19,7 +20,7 @@ test:
 
 # build the server binary
 build:
-    go build -ldflags="-s -w" -o bin/server ./cmd/server
+    go build -ldflags="-s -w -X 'github.com/confuzeus/replyforge/internal/config.Version={{version}}'" -o bin/server ./cmd/server
 
 # run the server
 run: build
@@ -34,7 +35,7 @@ seed:
     go run ./cmd/seed
 
 build-dev-image:
-    docker build -t dockershepherd/replyforge:dev-{{ tag }} .
+    docker build --build-arg VERSION=dev-{{ tag }} -t dockershepherd/replyforge:dev-{{ tag }} .
 
 push-dev-image:
     docker push dockershepherd/replyforge:dev-{{ tag }}
@@ -43,7 +44,7 @@ release-dev-image: build-dev-image push-dev-image
 
 # build the release docker image (tagged latest + git version)
 build-release-image:
-    docker build -t dockershepherd/replyforge:latest -t dockershepherd/replyforge:{{ release_version }} .
+    docker build --build-arg VERSION={{ release_version }} -t dockershepherd/replyforge:latest -t dockershepherd/replyforge:{{ release_version }} .
 
 # push the release docker image
 push-release-image:

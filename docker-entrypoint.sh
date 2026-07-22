@@ -14,5 +14,9 @@ if ! gosu replyforge bash -c "touch /app/data/.write_test && rm /app/data/.write
     exit 1
 fi
 
+if [ "$1" = "hash-password" ]; then
+    exec gosu replyforge /app/hash-password
+fi
+
 echo "Starting application as replyforge user..."
 exec gosu replyforge /app/server "$@"

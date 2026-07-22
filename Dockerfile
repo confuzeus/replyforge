@@ -8,6 +8,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /build/server ./cmd/server
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /build/hash-password ./cmd/generate-hash
 
 FROM debian:bookworm-slim
 
@@ -18,6 +19,7 @@ RUN useradd -m -u 1000 -s /bin/bash replyforge
 
 WORKDIR /app
 COPY --from=builder /build/server .
+COPY --from=builder /build/hash-password .
 
 COPY docker-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

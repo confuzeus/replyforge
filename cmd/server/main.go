@@ -80,6 +80,7 @@ func main() {
 	})
 
 	sessionManager := auth.NewSessionManager(cfg.AdminSessionTTL, cfg.AdminSessionSecure)
+	csrf := middleware.NewCSRF(cfg.AdminSessionSecure)
 
 	adminHandler := handler.NewAdminHandler(handler.AdminHandlerDependencies{
 		Service:        commentService,
@@ -92,6 +93,7 @@ func main() {
 	mux := http.NewServeMux()
 	commentHandler.RegisterRoutes(mux)
 	adminHandler.RegisterRoutes(mux)
+	mux.HandleFunc("GET /api/v1/admin/csrf", csrf.IssueTokenHandler)
 
 	corsCfg := middleware.NewCORSConfig(cfg.AllowedOrigins)
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM, cfg.RateLimitBurst, logger)
@@ -103,6 +105,7 @@ func main() {
 		Logger:      logger,
 		CORSConfig:  corsCfg,
 		RateLimiter: rateLimiter,
+		CSRF:        csrf,
 	}
 
 	wrappedHandler := setupMiddleware(mux, deps)
@@ -208,6 +211,7 @@ type middlewareDeps struct {
 	Logger      *slog.Logger
 	CORSConfig  *middleware.CORSConfig
 	RateLimiter *middleware.RateLimiter
+	CSRF        *middleware.CSRF
 }
 
 func setupMiddleware(handler http.Handler, deps middlewareDeps) http.Handler {
@@ -215,5 +219,8 @@ func setupMiddleware(handler http.Handler, deps middlewareDeps) http.Handler {
 	handler = middleware.Logging(deps.Logger)(handler)
 	handler = middleware.CORS(deps.CORSConfig)(handler)
 	handler = middleware.RateLimit(deps.RateLimiter)(handler)
+	if deps.CSRF != nil {
+		handler = deps.CSRF.Middleware(handler)
+	}
 	return handler
 }

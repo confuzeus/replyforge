@@ -80,7 +80,7 @@ func main() {
 	})
 
 	sessionManager := auth.NewSessionManager(cfg.AdminSessionTTL, cfg.AdminSessionSecure)
-	csrf := middleware.NewCSRF(cfg.AdminSessionSecure)
+	csrf := middleware.NewCSRF()
 
 	adminHandler := handler.NewAdminHandler(handler.AdminHandlerDependencies{
 		Service:        commentService,
@@ -93,7 +93,6 @@ func main() {
 	mux := http.NewServeMux()
 	commentHandler.RegisterRoutes(mux)
 	adminHandler.RegisterRoutes(mux)
-	mux.HandleFunc("GET /api/v1/admin/csrf", csrf.IssueTokenHandler)
 
 	corsCfg := middleware.NewCORSConfig(cfg.AllowedOrigins)
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM, cfg.RateLimitBurst, logger)

@@ -256,3 +256,7 @@ just test   # Run all tests with race detector
 just build  # Build the server binary
 just run    # Build and run
 ```
+
+## License
+
+AGPL 3

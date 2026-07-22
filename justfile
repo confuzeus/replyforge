@@ -29,6 +29,10 @@ run: build
 hash:
     go run ./cmd/generate-hash
 
+# seed the database with realistic comments for development
+seed:
+    go run ./cmd/seed
+
 build-dev-image:
     docker build -t dockershepherd/replyforge:dev-{{ tag }} .
 

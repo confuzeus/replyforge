@@ -30,6 +30,8 @@ services:
       - 127.0.0.1:8080:8080
 ```
 
+Read the [full deployment guide](https://replyforge.joshkaramuth.com/deploy-uncloud/).
+
 ## Configuration
 
 Configuration is loaded from environment variables. Copy `.env.example` to `.env` and adjust as needed.

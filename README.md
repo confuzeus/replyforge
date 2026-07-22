@@ -210,7 +210,7 @@ GET /api/v1/comments/{id}
 
 ## Admin Interface
 
-An HTML admin interface for comment moderation is available at `GET /admin`. Generate an admin password hash with `just hash` and add `ADMIN_PASSWORD_HASH` to your `.env`. Four admin API endpoints are available:
+An HTML admin interface for comment moderation is available at `GET /admin`. Generate an admin password hash with `docker run -it dockershepherd/replyforge:latest hash-password` and add `ADMIN_PASSWORD_HASH` to your `.env`. Four admin API endpoints are available:
 
 | Action            | Endpoint                                           | Auth Required         |
 | ----------------- | -------------------------------------------------- | --------------------- |

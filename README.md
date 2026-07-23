@@ -10,25 +10,68 @@ Readers submit comments through a Turnstile-protected API endpoint. Comments are
 
 ## Quick Start
 
-Deploy using Docker Compose:
+1. **Generate an admin password hash:**
 
-```bash
-name: replyforge
+   ```bash
+   docker run -it dockershepherd/replyforge:latest hash-password
+   ```
 
-volumes:
-  comments_data:
+   Copy the output `ADMIN_PASSWORD_HASH=...` line into your environment file.
 
-services:
-  comments:
-    image: dockershepherd/replyforge:dev
-    env_file:
-      - path: ./.env.production
-        required: true
-    volumes:
-      - comments_data:/app/data
-    ports:
-      - 127.0.0.1:8080:8080
-```
+2. **Create `.env.production`:**
+
+   ```env
+   TURNSTILE_SECRET_KEY=your-turnstile-secret-key
+   ADMIN_PASSWORD_HASH='$argon2id$v=19$m=65536,t=3,p=4$...'
+   ALLOWED_ORIGINS=https://comments.example.com
+   ```
+
+3. **Create `conf/Caddyfile`:**
+
+   ```caddy
+   comments.example.com {
+       reverse_proxy comments:8080
+   }
+   ```
+
+4. **Create `docker-compose.yml`:**
+
+   ```yaml
+   name: replyforge
+
+   volumes:
+     comments_data:
+     caddy_data:
+     caddy_config:
+
+   services:
+     comments:
+       image: dockershepherd/replyforge:latest
+       restart: unless-stopped
+       env_file:
+         - path: ./.env.production
+           required: true
+       volumes:
+         - comments_data:/app/data
+
+     web:
+       image: caddy:2-alpine
+       restart: unless-stopped
+       ports:
+         - 80:80
+         - 443:443
+         - 443:443/udp
+       volumes:
+         - ./conf:/etc/caddy
+         - caddy_data:/data
+         - caddy_config:/config
+   ```
+
+5. **Start the services:**
+
+   ```bash
+   docker compose up -d
+   ```
 
 Read the [full deployment guide](https://replyforge.joshkaramuth.com/deploy-uncloud/).
 

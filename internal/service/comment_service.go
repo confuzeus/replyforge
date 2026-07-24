@@ -14,8 +14,8 @@ import (
 	"github.com/confuzeus/replyforge/internal/sanitizer"
 )
 
-type turnstileVerifier interface {
-	Verify(ctx context.Context, token, remoteIP string) (bool, error)
+type CaptchaVerifier interface {
+	Verify(ctx context.Context, captchaID, answer, clientIP string) (bool, error)
 }
 
 type emailNotifier interface {
@@ -25,7 +25,7 @@ type emailNotifier interface {
 type ServiceDependencies struct {
 	Repository    *repository.CommentRepository
 	DisplayIDGen  *model.DisplayIDGenerator
-	Turnstile     turnstileVerifier
+	Captcha       CaptchaVerifier
 	Sanitizer     *sanitizer.Sanitizer
 	Logger        *slog.Logger
 	EmailNotifier emailNotifier
@@ -34,7 +34,7 @@ type ServiceDependencies struct {
 type CommentService struct {
 	repo          *repository.CommentRepository
 	displayIDGen  *model.DisplayIDGenerator
-	turnstile     turnstileVerifier
+	captcha       CaptchaVerifier
 	sanitizer     *sanitizer.Sanitizer
 	emailNotifier emailNotifier
 	mu            sync.Mutex
@@ -42,12 +42,13 @@ type CommentService struct {
 }
 
 type CreateInput struct {
-	PostID         string
-	AuthorName     string
-	Body           string
-	TurnstileToken string
-	ClientIP       string
-	UserAgent      string
+	PostID        string
+	AuthorName    string
+	Body          string
+	CaptchaID     string
+	CaptchaAnswer string
+	ClientIP      string
+	UserAgent     string
 }
 
 type ListParams struct {
@@ -86,7 +87,7 @@ func NewCommentService(deps ServiceDependencies) *CommentService {
 	return &CommentService{
 		repo:          deps.Repository,
 		displayIDGen:  deps.DisplayIDGen,
-		turnstile:     deps.Turnstile,
+		captcha:       deps.Captcha,
 		sanitizer:     deps.Sanitizer,
 		emailNotifier: deps.EmailNotifier,
 		logger:        deps.Logger,
@@ -97,17 +98,17 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 	authorName := s.sanitizer.Sanitize(input.AuthorName)
 	body := s.sanitizer.Sanitize(input.Body)
 
-	ok, err := s.turnstile.Verify(ctx, input.TurnstileToken, input.ClientIP)
-	middleware.TurnstileVerificationsTotal.Add(1)
+	ok, err := s.captcha.Verify(ctx, input.CaptchaID, input.CaptchaAnswer, input.ClientIP)
+	middleware.CaptchaVerificationsTotal.Add(1)
 	if err != nil {
-		middleware.TurnstileFailedTotal.Add(1)
-		s.logger.Error("turnstile verification failed", "error", err)
-		return nil, &ServiceError{Code: "TURNSTILE_FAILED", Message: "Turnstile verification failed", Err: err}
+		middleware.CaptchaFailedTotal.Add(1)
+		s.logger.Error("captcha verification failed", "error", err)
+		return nil, &ServiceError{Code: "CAPTCHA_FAILED", Message: "Captcha verification failed", Err: err}
 	}
 	if !ok {
-		middleware.TurnstileFailedTotal.Add(1)
-		s.logger.Warn("turnstile verification unsuccessful", "client_ip", input.ClientIP)
-		return nil, &ServiceError{Code: "TURNSTILE_FAILED", Message: "Turnstile verification unsuccessful"}
+		middleware.CaptchaFailedTotal.Add(1)
+		s.logger.Warn("captcha verification unsuccessful", "client_ip", input.ClientIP)
+		return nil, &ServiceError{Code: "CAPTCHA_FAILED", Message: "Captcha verification unsuccessful"}
 	}
 
 	comment := &repository.Comment{
@@ -117,7 +118,7 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 		Approved:          false,
 		IPAddress:         input.ClientIP,
 		UserAgent:         input.UserAgent,
-		TurnstileVerified: true,
+		CaptchaVerified: true,
 	}
 
 	s.mu.Lock()

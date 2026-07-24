@@ -20,12 +20,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type stubTurnstileVerifier struct {
+type stubCaptchaVerifier struct {
 	ok  bool
 	err error
 }
 
-func (s *stubTurnstileVerifier) Verify(_ context.Context, _, _ string) (bool, error) {
+func (s *stubCaptchaVerifier) Verify(_ context.Context, _, _, _ string) (bool, error) {
 	return s.ok, s.err
 }
 
@@ -49,12 +49,12 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func newTestService(t *testing.T, db *sql.DB, turnstileOK bool) *CommentService {
+func newTestService(t *testing.T, db *sql.DB, captchaOK bool) *CommentService {
 	t.Helper()
 	return NewCommentService(ServiceDependencies{
 		Repository:    repository.NewCommentRepository(db),
 		DisplayIDGen:  model.NewDisplayIDGenerator(),
-		Turnstile:     &stubTurnstileVerifier{ok: turnstileOK},
+		Captcha:       &stubCaptchaVerifier{ok: captchaOK},
 		Sanitizer:     sanitizer.NewSanitizer(),
 		Logger:        slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
 		EmailNotifier: nil,
@@ -69,7 +69,7 @@ func seedApprovedComment(t *testing.T, db *sql.DB, postID, authorName, body stri
 		AuthorName:        authorName,
 		Body:              body,
 		Approved:          true,
-		TurnstileVerified: true,
+		CaptchaVerified: true,
 		IPAddress:         "127.0.0.1",
 		UserAgent:         "test-agent",
 	}
@@ -106,12 +106,12 @@ func TestCreate_Success(t *testing.T) {
 	svc := newTestService(t, db, true)
 
 	resp, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "Alice",
-		Body:           "Hello world",
-		TurnstileToken: "valid-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "Alice",
+		Body:          "Hello world",
+		CaptchaAnswer: "valid-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 
 	require.NoError(t, err)
@@ -129,18 +129,18 @@ func TestCreate_TurnstileFailed(t *testing.T) {
 	svc := newTestService(t, db, false)
 
 	_, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "Alice",
-		Body:           "Hello world",
-		TurnstileToken: "bad-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "Alice",
+		Body:          "Hello world",
+		CaptchaAnswer: "bad-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 
 	require.Error(t, err)
 	var svcErr *ServiceError
 	assert.True(t, errors.As(err, &svcErr))
-	assert.Equal(t, "TURNSTILE_FAILED", svcErr.Code)
+	assert.Equal(t, "CAPTCHA_FAILED", svcErr.Code)
 }
 
 func TestCreate_TurnstileError(t *testing.T) {
@@ -148,24 +148,24 @@ func TestCreate_TurnstileError(t *testing.T) {
 	svc := NewCommentService(ServiceDependencies{
 		Repository:   repository.NewCommentRepository(db),
 		DisplayIDGen: model.NewDisplayIDGenerator(),
-		Turnstile:    &stubTurnstileVerifier{err: errors.New("network error")},
+		Captcha:      &stubCaptchaVerifier{err: errors.New("network error")},
 		Sanitizer:    sanitizer.NewSanitizer(),
 		Logger:       slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
 	})
 
 	_, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "Alice",
-		Body:           "Hello world",
-		TurnstileToken: "valid-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "Alice",
+		Body:          "Hello world",
+		CaptchaAnswer: "valid-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 
 	require.Error(t, err)
 	var svcErr *ServiceError
 	assert.True(t, errors.As(err, &svcErr))
-	assert.Equal(t, "TURNSTILE_FAILED", svcErr.Code)
+	assert.Equal(t, "CAPTCHA_FAILED", svcErr.Code)
 }
 
 func TestCreate_SendsEmailNotification(t *testing.T) {
@@ -174,19 +174,19 @@ func TestCreate_SendsEmailNotification(t *testing.T) {
 	svc := NewCommentService(ServiceDependencies{
 		Repository:    repository.NewCommentRepository(db),
 		DisplayIDGen:  model.NewDisplayIDGenerator(),
-		Turnstile:     &stubTurnstileVerifier{ok: true},
+		Captcha:       &stubCaptchaVerifier{ok: true},
 		Sanitizer:     sanitizer.NewSanitizer(),
 		Logger:        slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
 		EmailNotifier: notifier,
 	})
 
 	_, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "Alice",
-		Body:           "Hello world",
-		TurnstileToken: "valid-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "Alice",
+		Body:          "Hello world",
+		CaptchaAnswer: "valid-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 	require.NoError(t, err)
 
@@ -204,19 +204,19 @@ func TestCreate_NoEmailOnTurnstileFail(t *testing.T) {
 	svc := NewCommentService(ServiceDependencies{
 		Repository:    repository.NewCommentRepository(db),
 		DisplayIDGen:  model.NewDisplayIDGenerator(),
-		Turnstile:     &stubTurnstileVerifier{ok: false},
+		Captcha:       &stubCaptchaVerifier{ok: false},
 		Sanitizer:     sanitizer.NewSanitizer(),
 		Logger:        slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
 		EmailNotifier: notifier,
 	})
 
 	_, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "Alice",
-		Body:           "Hello world",
-		TurnstileToken: "bad-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "Alice",
+		Body:          "Hello world",
+		CaptchaAnswer: "bad-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 	require.Error(t, err)
 
@@ -232,12 +232,12 @@ func TestCreate_SanitizedFields(t *testing.T) {
 	svc := newTestService(t, db, true)
 
 	resp, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "Alice<script>alert('xss')</script>",
-		Body:           "<b>Hello</b> <script>alert('xss')</script>",
-		TurnstileToken: "valid-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "Alice<script>alert('xss')</script>",
+		Body:          "<b>Hello</b> <script>alert('xss')</script>",
+		CaptchaAnswer: "valid-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 
 	require.NoError(t, err)
@@ -252,12 +252,12 @@ func TestCreate_PreservesSpecialCharacters(t *testing.T) {
 	svc := newTestService(t, db, true)
 
 	resp, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "O'Brien & Co",
-		Body:           "I'm happy & it's a < b test",
-		TurnstileToken: "valid-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "O'Brien & Co",
+		Body:          "I'm happy & it's a < b test",
+		CaptchaAnswer: "valid-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 
 	require.NoError(t, err)
@@ -270,12 +270,12 @@ func TestCreate_ExistingHTMLEntitiesCorrected(t *testing.T) {
 	svc := newTestService(t, db, true)
 
 	resp, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "O&#39;Brien",
-		Body:           "I&#39;m &amp; happy",
-		TurnstileToken: "valid-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "O&#39;Brien",
+		Body:          "I&#39;m &amp; happy",
+		CaptchaAnswer: "valid-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 
 	require.NoError(t, err)
@@ -438,12 +438,12 @@ func TestCreate_WhitespaceOnlyFields(t *testing.T) {
 	svc := newTestService(t, db, true)
 
 	resp, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "   \t\n   ",
-		Body:           "Some valid body content",
-		TurnstileToken: "valid-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "   \t\n   ",
+		Body:          "Some valid body content",
+		CaptchaAnswer: "valid-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 
 	require.NoError(t, err)
@@ -456,12 +456,12 @@ func TestCreate_WhitespaceOnlyBody(t *testing.T) {
 	svc := newTestService(t, db, true)
 
 	resp, err := svc.Create(context.Background(), CreateInput{
-		PostID:         "post-1",
-		AuthorName:     "Alice",
-		Body:           "\t\n  \t  \n",
-		TurnstileToken: "valid-token",
-		ClientIP:       "127.0.0.1",
-		UserAgent:      "test-agent",
+		PostID:        "post-1",
+		AuthorName:    "Alice",
+		Body:          "\t\n  \t  \n",
+		CaptchaAnswer: "valid-token",
+		ClientIP:      "127.0.0.1",
+		UserAgent:     "test-agent",
 	})
 
 	require.NoError(t, err)

@@ -16,7 +16,7 @@ type Comment struct {
 	Approved          bool
 	IPAddress         string
 	UserAgent         string
-	TurnstileVerified bool
+	CaptchaVerified bool
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }
@@ -40,7 +40,7 @@ func scanComment(row interface{ Scan(...interface{}) error }) (*Comment, error) 
 	var c Comment
 	err := row.Scan(&c.ID, &c.DisplayID, &c.PostID, &c.AuthorName,
 		&c.Body, &c.Approved, &c.IPAddress, &c.UserAgent,
-		&c.TurnstileVerified, &c.CreatedAt, &c.UpdatedAt)
+		&c.CaptchaVerified, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -49,10 +49,10 @@ func scanComment(row interface{ Scan(...interface{}) error }) (*Comment, error) 
 
 func (r *CommentRepository) Insert(ctx context.Context, comment *Comment) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO comments (post_id, author_name, body, approved, ip_address, user_agent, turnstile_verified)
+		`INSERT INTO comments (post_id, author_name, body, approved, ip_address, user_agent, captcha_verified)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		comment.PostID, comment.AuthorName, comment.Body, comment.Approved,
-		comment.IPAddress, comment.UserAgent, comment.TurnstileVerified,
+		comment.IPAddress, comment.UserAgent, comment.CaptchaVerified,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("inserting comment: %w", err)
@@ -86,7 +86,7 @@ func (r *CommentRepository) UpdateDisplayID(ctx context.Context, id int64, displ
 func (r *CommentRepository) FindByID(ctx context.Context, id int64) (*Comment, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, display_id, post_id, author_name, body, approved,
-		 ip_address, user_agent, turnstile_verified, created_at, updated_at
+		 ip_address, user_agent, captcha_verified, created_at, updated_at
 		 FROM comments WHERE id = ?`, id,
 	)
 	return scanComment(row)
@@ -95,7 +95,7 @@ func (r *CommentRepository) FindByID(ctx context.Context, id int64) (*Comment, e
 func (r *CommentRepository) FindByIDApproved(ctx context.Context, id int64) (*Comment, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, display_id, post_id, author_name, body, approved,
-		 ip_address, user_agent, turnstile_verified, created_at, updated_at
+		 ip_address, user_agent, captcha_verified, created_at, updated_at
 		 FROM comments WHERE id = ? AND approved = 1`, id,
 	)
 	return scanComment(row)
@@ -125,7 +125,7 @@ func (r *CommentRepository) FindApproved(ctx context.Context, params QueryParams
 
 	selectQuery := fmt.Sprintf(
 		`SELECT id, display_id, post_id, author_name, body, approved,
-		 ip_address, user_agent, turnstile_verified, created_at, updated_at
+		 ip_address, user_agent, captcha_verified, created_at, updated_at
 		 FROM comments %s %s LIMIT ? OFFSET ?`,
 		where, orderBy,
 	)
@@ -180,7 +180,7 @@ func (r *CommentRepository) FindAll(ctx context.Context, params QueryParams) ([]
 
 	selectQuery := fmt.Sprintf(
 		`SELECT id, display_id, post_id, author_name, body, approved,
-		 ip_address, user_agent, turnstile_verified, created_at, updated_at
+		 ip_address, user_agent, captcha_verified, created_at, updated_at
 		 FROM comments %s %s LIMIT ? OFFSET ?`,
 		where, orderBy,
 	)

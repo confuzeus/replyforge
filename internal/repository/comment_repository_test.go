@@ -67,7 +67,7 @@ func TestInsert_SetDefaults(t *testing.T) {
 
 	assert.False(t, retrieved.Approved)
 	assert.Equal(t, "", retrieved.DisplayID)
-	assert.False(t, retrieved.TurnstileVerified)
+	assert.False(t, retrieved.CaptchaVerified)
 }
 
 func TestUpdateDisplayID_Success(t *testing.T) {
@@ -113,7 +113,7 @@ func TestFindByID_Found(t *testing.T) {
 		Body:              "Full comment body",
 		IPAddress:         "192.168.1.1",
 		UserAgent:         "Firefox",
-		TurnstileVerified: true,
+		CaptchaVerified: true,
 	}
 
 	id, err := repo.Insert(context.Background(), c)
@@ -132,7 +132,7 @@ func TestFindByID_Found(t *testing.T) {
 	assert.False(t, retrieved.Approved)
 	assert.Equal(t, "192.168.1.1", retrieved.IPAddress)
 	assert.Equal(t, "Firefox", retrieved.UserAgent)
-	assert.True(t, retrieved.TurnstileVerified)
+	assert.True(t, retrieved.CaptchaVerified)
 	assert.WithinDuration(t, now, retrieved.CreatedAt, 2*time.Second)
 	assert.WithinDuration(t, now, retrieved.UpdatedAt, 2*time.Second)
 }
@@ -157,7 +157,7 @@ func TestFindApproved_AllApproved(t *testing.T) {
 			IPAddress:         "127.0.0.1",
 			UserAgent:         "test",
 			Approved:          approved,
-			TurnstileVerified: true,
+			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
 		_ = i
@@ -184,7 +184,7 @@ func TestFindApproved_FilterByPost(t *testing.T) {
 			IPAddress:         "127.0.0.1",
 			UserAgent:         "test",
 			Approved:          true,
-			TurnstileVerified: true,
+			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
 	}
@@ -214,7 +214,7 @@ func TestFindApproved_Pagination(t *testing.T) {
 			IPAddress:         "127.0.0.1",
 			UserAgent:         "test",
 			Approved:          true,
-			TurnstileVerified: true,
+			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
 	}
@@ -235,14 +235,14 @@ func TestFindApproved_SortAsc(t *testing.T) {
 	c1 := &Comment{
 		PostID: "post-1", AuthorName: "User", Body: "First",
 		IPAddress: "127.0.0.1", UserAgent: "test",
-		Approved: true, TurnstileVerified: true,
+		Approved: true, CaptchaVerified: true,
 	}
 	seedComment(t, db, c1)
 
 	c2 := &Comment{
 		PostID: "post-1", AuthorName: "User", Body: "Second",
 		IPAddress: "127.0.0.1", UserAgent: "test",
-		Approved: true, TurnstileVerified: true,
+		Approved: true, CaptchaVerified: true,
 	}
 	seedComment(t, db, c2)
 
@@ -264,14 +264,14 @@ func TestFindApproved_SortDesc(t *testing.T) {
 	c1 := &Comment{
 		PostID: "post-1", AuthorName: "User", Body: "First",
 		IPAddress: "127.0.0.1", UserAgent: "test",
-		Approved: true, TurnstileVerified: true,
+		Approved: true, CaptchaVerified: true,
 	}
 	seedComment(t, db, c1)
 
 	c2 := &Comment{
 		PostID: "post-1", AuthorName: "User", Body: "Second",
 		IPAddress: "127.0.0.1", UserAgent: "test",
-		Approved: true, TurnstileVerified: true,
+		Approved: true, CaptchaVerified: true,
 	}
 	seedComment(t, db, c2)
 
@@ -312,7 +312,7 @@ func TestFindApproved_EdgeCaseParams(t *testing.T) {
 			IPAddress:         "127.0.0.1",
 			UserAgent:         "test",
 			Approved:          true,
-			TurnstileVerified: true,
+			CaptchaVerified: true,
 		})
 	}
 
@@ -366,7 +366,7 @@ func TestFindApproved_ContextCanceled(t *testing.T) {
 		IPAddress:         "127.0.0.1",
 		UserAgent:         "test",
 		Approved:          true,
-		TurnstileVerified: true,
+		CaptchaVerified: true,
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -399,7 +399,7 @@ func TestFindAll_AllComments(t *testing.T) {
 			IPAddress:         "127.0.0.1",
 			UserAgent:         "test",
 			Approved:          approved,
-			TurnstileVerified: true,
+			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
 		_ = i
@@ -426,7 +426,7 @@ func TestFindAll_FilterByPost(t *testing.T) {
 			IPAddress:         "127.0.0.1",
 			UserAgent:         "test",
 			Approved:          true,
-			TurnstileVerified: true,
+			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
 	}
@@ -456,7 +456,7 @@ func TestFindAll_Pagination(t *testing.T) {
 			IPAddress:         "127.0.0.1",
 			UserAgent:         "test",
 			Approved:          true,
-			TurnstileVerified: true,
+			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
 	}

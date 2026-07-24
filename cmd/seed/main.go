@@ -170,7 +170,7 @@ func main() {
 			Approved:          rng.Float64() < 0.8,
 			IPAddress:         ips[rng.Intn(len(ips))],
 			UserAgent:         userAgents[rng.Intn(len(userAgents))],
-			TurnstileVerified: rng.Float64() < 0.9,
+			CaptchaVerified: rng.Float64() < 0.9,
 		}
 
 		id, err := repo.Insert(ctx, comment)

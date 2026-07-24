@@ -16,7 +16,9 @@ type CreateCommentRequest struct {
 	PostID         string `json:"post_id"`
 	AuthorName     string `json:"author_name"`
 	Body           string `json:"body"`
-	TurnstileToken string `json:"turnstile_token"`
+	TurnstileToken string `json:"turnstile_token,omitempty"`
+	CaptchaID      string `json:"captcha_id,omitempty"`
+	CaptchaAnswer  string `json:"captcha_answer,omitempty"`
 }
 
 type ListCommentsResponse struct {

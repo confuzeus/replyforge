@@ -43,8 +43,10 @@ func (v *TurnstileVerifier) cacheKey(token, remoteIP string) string {
 	return fmt.Sprintf("%x", hash)
 }
 
-func (v *TurnstileVerifier) Verify(ctx context.Context, token, remoteIP string) (bool, error) {
-	key := v.cacheKey(token, remoteIP)
+func (v *TurnstileVerifier) Verify(ctx context.Context, captchaID, answer, clientIP string) (bool, error) {
+	_ = captchaID
+
+	key := v.cacheKey(answer, clientIP)
 
 	v.mu.RLock()
 	if entry, ok := v.cache[key]; ok && time.Since(entry.timestamp) < 5*time.Minute {
@@ -55,8 +57,8 @@ func (v *TurnstileVerifier) Verify(ctx context.Context, token, remoteIP string) 
 
 	form := url.Values{}
 	form.Set("secret", v.secretKey)
-	form.Set("response", token)
-	form.Set("remoteip", remoteIP)
+	form.Set("response", answer)
+	form.Set("remoteip", clientIP)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		"https://challenges.cloudflare.com/turnstile/v0/siteverify",

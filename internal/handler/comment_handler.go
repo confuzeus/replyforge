@@ -13,19 +13,22 @@ import (
 )
 
 type CommentHandler struct {
-	service *service.CommentService
-	logger  *slog.Logger
+	service         *service.CommentService
+	logger          *slog.Logger
+	captchaProvider string
 }
 
 type HandlerDependencies struct {
-	Service *service.CommentService
-	Logger  *slog.Logger
+	Service         *service.CommentService
+	Logger          *slog.Logger
+	CaptchaProvider string
 }
 
 func NewCommentHandler(deps HandlerDependencies) *CommentHandler {
 	return &CommentHandler{
-		service: deps.Service,
-		logger:  deps.Logger,
+		service:         deps.Service,
+		logger:          deps.Logger,
+		captchaProvider: deps.CaptchaProvider,
 	}
 }
 
@@ -50,13 +53,30 @@ func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	clientIP := middleware.ExtractClientIP(r)
 
+	var captchaID, captchaAnswer string
+	if h.captchaProvider == "pcaptcha" {
+		if req.CaptchaID == "" || req.CaptchaAnswer == "" {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "captcha_id and captcha_answer are required", nil)
+			return
+		}
+		captchaID = req.CaptchaID
+		captchaAnswer = req.CaptchaAnswer
+	} else {
+		if req.TurnstileToken == "" {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "turnstile_token is required", nil)
+			return
+		}
+		captchaAnswer = req.TurnstileToken
+	}
+
 	input := service.CreateInput{
-		PostID:         req.PostID,
-		AuthorName:     req.AuthorName,
-		Body:           req.Body,
-		TurnstileToken: req.TurnstileToken,
-		ClientIP:       clientIP,
-		UserAgent:      r.UserAgent(),
+		PostID:        req.PostID,
+		AuthorName:    req.AuthorName,
+		Body:          req.Body,
+		CaptchaID:     captchaID,
+		CaptchaAnswer: captchaAnswer,
+		ClientIP:      clientIP,
+		UserAgent:     r.UserAgent(),
 	}
 
 	comment, err := h.service.Create(r.Context(), input)
@@ -177,7 +197,7 @@ func serviceErrorToHTTP(svcErr *service.ServiceError) (int, string) {
 		return http.StatusBadRequest, svcErr.Code
 	case "NOT_FOUND":
 		return http.StatusNotFound, svcErr.Code
-	case "TURNSTILE_FAILED":
+	case "CAPTCHA_FAILED":
 		return http.StatusForbidden, svcErr.Code
 	case "INTERNAL_ERROR":
 		return http.StatusInternalServerError, svcErr.Code

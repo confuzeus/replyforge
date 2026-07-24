@@ -45,13 +45,6 @@ func (r *CreateCommentRequest) Validate() *ValidationError {
 		})
 	}
 
-	if r.TurnstileToken == "" {
-		fields = append(fields, FieldError{
-			Field:   "turnstile_token",
-			Message: "is required",
-		})
-	}
-
 	if len(fields) == 0 {
 		return nil
 	}

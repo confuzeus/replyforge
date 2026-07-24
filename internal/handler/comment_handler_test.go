@@ -27,12 +27,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type stubTurnstileVerifier struct {
+type stubCaptchaVerifier struct {
 	ok  bool
 	err error
 }
 
-func (s *stubTurnstileVerifier) Verify(_ context.Context, _, _ string) (bool, error) {
+func (s *stubCaptchaVerifier) Verify(_ context.Context, _, _, _ string) (bool, error) {
 	return s.ok, s.err
 }
 
@@ -44,23 +44,24 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func newTestService(t *testing.T, db *sql.DB, turnstileOK bool) *service.CommentService {
+func newTestService(t *testing.T, db *sql.DB, captchaOK bool) *service.CommentService {
 	t.Helper()
 	return service.NewCommentService(service.ServiceDependencies{
 		Repository:   repository.NewCommentRepository(db),
 		DisplayIDGen: model.NewDisplayIDGenerator(),
-		Turnstile:    &stubTurnstileVerifier{ok: turnstileOK},
+		Captcha:      &stubCaptchaVerifier{ok: captchaOK},
 		Sanitizer:    sanitizer.NewSanitizer(),
 		Logger:       slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
 	})
 }
 
-func newTestHandler(t *testing.T, db *sql.DB, turnstileOK bool) *CommentHandler {
+func newTestHandler(t *testing.T, db *sql.DB, captchaOK bool) *CommentHandler {
 	t.Helper()
-	svc := newTestService(t, db, turnstileOK)
+	svc := newTestService(t, db, captchaOK)
 	return NewCommentHandler(HandlerDependencies{
-		Service: svc,
-		Logger:  slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		Service:         svc,
+		Logger:          slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		CaptchaProvider: "turnstile",
 	})
 }
 
@@ -72,7 +73,7 @@ func seedApprovedComment(t *testing.T, db *sql.DB, postID, authorName, body stri
 		AuthorName:        authorName,
 		Body:              body,
 		Approved:          true,
-		TurnstileVerified: true,
+		CaptchaVerified: true,
 		IPAddress:         "127.0.0.1",
 		UserAgent:         "test-agent",
 	}
@@ -87,6 +88,16 @@ func seedApprovedComment(t *testing.T, db *sql.DB, postID, authorName, body stri
 	c.ID = id
 	c.DisplayID = displayID
 	return c
+}
+
+func newTestHandlerPCaptcha(t *testing.T, db *sql.DB, captchaOK bool) *CommentHandler {
+	t.Helper()
+	svc := newTestService(t, db, captchaOK)
+	return NewCommentHandler(HandlerDependencies{
+		Service:         svc,
+		Logger:          slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		CaptchaProvider: "pcaptcha",
+	})
 }
 
 func TestCreate_Success(t *testing.T) {
@@ -133,7 +144,7 @@ func TestCreate_ValidationError(t *testing.T) {
 	assert.NotEmpty(t, resp.Error.Details)
 }
 
-func TestCreate_TurnstileFailed(t *testing.T) {
+func TestCreate_CaptchaFailed(t *testing.T) {
 	db := setupTestDB(t)
 	handler := newTestHandler(t, db, false)
 
@@ -148,7 +159,7 @@ func TestCreate_TurnstileFailed(t *testing.T) {
 
 	var resp model.ErrorResponse
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
-	assert.Equal(t, "TURNSTILE_FAILED", resp.Error.Code)
+	assert.Equal(t, "CAPTCHA_FAILED", resp.Error.Code)
 }
 
 func TestCreate_TurnstileError(t *testing.T) {
@@ -156,13 +167,14 @@ func TestCreate_TurnstileError(t *testing.T) {
 	svc := service.NewCommentService(service.ServiceDependencies{
 		Repository:   repository.NewCommentRepository(db),
 		DisplayIDGen: model.NewDisplayIDGenerator(),
-		Turnstile:    &stubTurnstileVerifier{err: errors.New("network error")},
+		Captcha:      &stubCaptchaVerifier{err: errors.New("network error")},
 		Sanitizer:    sanitizer.NewSanitizer(),
 		Logger:       slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
 	})
 	handler := NewCommentHandler(HandlerDependencies{
-		Service: svc,
-		Logger:  slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		Service:         svc,
+		Logger:          slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+		CaptchaProvider: "turnstile",
 	})
 
 	body := `{"post_id":"post-1","author_name":"Alice","body":"Hello world","turnstile_token":"valid"}`
@@ -447,4 +459,74 @@ func TestGet_ZeroID(t *testing.T) {
 	handler.Get(rec, req)
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestCreate_PCaptchaSuccess(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandlerPCaptcha(t, db, true)
+
+	body := `{"post_id":"post-1","author_name":"Alice","body":"Hello world","captcha_id":"abc","captcha_answer":"def"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/comments", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.Create(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+}
+
+func TestCreate_PCaptchaMissingID(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandlerPCaptcha(t, db, true)
+
+	body := `{"post_id":"post-1","author_name":"Alice","body":"Hello world","captcha_answer":"def"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/comments", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.Create(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestCreate_PCaptchaMissingAnswer(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandlerPCaptcha(t, db, true)
+
+	body := `{"post_id":"post-1","author_name":"Alice","body":"Hello world","captcha_id":"abc"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/comments", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.Create(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestCreate_PCaptchaFailed(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandlerPCaptcha(t, db, false)
+
+	body := `{"post_id":"post-1","author_name":"Alice","body":"Hello world","captcha_id":"abc","captcha_answer":"wrong"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/comments", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.Create(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestCreate_TurnstileMissingToken(t *testing.T) {
+	db := setupTestDB(t)
+	handler := newTestHandler(t, db, true)
+
+	body := `{"post_id":"post-1","author_name":"Alice","body":"Hello world"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/comments", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.Create(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }

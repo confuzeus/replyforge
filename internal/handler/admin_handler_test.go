@@ -53,7 +53,7 @@ func seedUnapproved(t *testing.T, db *sql.DB) *repository.Comment {
 		Body:              "Not approved yet",
 		IPAddress:         "127.0.0.1",
 		UserAgent:         "test-agent",
-		TurnstileVerified: true,
+		CaptchaVerified: true,
 	}
 	id, err := repo.Insert(context.Background(), c)
 	require.NoError(t, err)

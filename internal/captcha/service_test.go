@@ -4,7 +4,9 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var testLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 func buildChallenge(woodall string, answers []*big.Int) string {
 	encValues := make([]string, len(answers))
@@ -35,7 +39,7 @@ func buildAnswer(xs []*big.Int) string {
 
 func TestVerify_Success(t *testing.T) {
 	storage := NewInMemoryStorage(5 * time.Minute)
-	svc := NewCaptchaService(storage)
+	svc := NewCaptchaService(storage, testLogger)
 
 	x1, _ := new(big.Int).SetString("42", 10)
 	x2, _ := new(big.Int).SetString("100", 10)
@@ -53,7 +57,7 @@ func TestVerify_Success(t *testing.T) {
 
 func TestVerify_WrongAnswer(t *testing.T) {
 	storage := NewInMemoryStorage(5 * time.Minute)
-	svc := NewCaptchaService(storage)
+	svc := NewCaptchaService(storage, testLogger)
 
 	x, _ := new(big.Int).SetString("42", 10)
 	challenge := buildChallenge("751*2^751-1", []*big.Int{x})
@@ -69,7 +73,7 @@ func TestVerify_WrongAnswer(t *testing.T) {
 
 func TestVerify_ExpiredChallenge(t *testing.T) {
 	storage := NewInMemoryStorage(1 * time.Nanosecond)
-	svc := NewCaptchaService(storage)
+	svc := NewCaptchaService(storage, testLogger)
 
 	x, _ := new(big.Int).SetString("42", 10)
 	challenge := buildChallenge("751*2^751-1", []*big.Int{x})
@@ -86,7 +90,7 @@ func TestVerify_ExpiredChallenge(t *testing.T) {
 
 func TestVerify_UnknownID(t *testing.T) {
 	storage := NewInMemoryStorage(5 * time.Minute)
-	svc := NewCaptchaService(storage)
+	svc := NewCaptchaService(storage, testLogger)
 
 	ok, err := svc.Verify(nil, "nonexistent", "any", "")
 	require.NoError(t, err)
@@ -95,7 +99,7 @@ func TestVerify_UnknownID(t *testing.T) {
 
 func TestVerify_WrongRounds(t *testing.T) {
 	storage := NewInMemoryStorage(5 * time.Minute)
-	svc := NewCaptchaService(storage)
+	svc := NewCaptchaService(storage, testLogger)
 
 	x1, _ := new(big.Int).SetString("42", 10)
 	x2, _ := new(big.Int).SetString("100", 10)
@@ -111,7 +115,7 @@ func TestVerify_WrongRounds(t *testing.T) {
 
 func TestVerify_OneTimeUse(t *testing.T) {
 	storage := NewInMemoryStorage(5 * time.Minute)
-	svc := NewCaptchaService(storage)
+	svc := NewCaptchaService(storage, testLogger)
 
 	x, _ := new(big.Int).SetString("42", 10)
 	challenge := buildChallenge("751*2^751-1", []*big.Int{x})
@@ -130,7 +134,7 @@ func TestVerify_OneTimeUse(t *testing.T) {
 
 func TestGenerateChallenge_ProducesValidOutput(t *testing.T) {
 	storage := NewInMemoryStorage(5 * time.Minute)
-	svc := NewCaptchaService(storage)
+	svc := NewCaptchaService(storage, testLogger)
 
 	id, challenge, err := svc.GenerateChallenge(GenerateOptions{Woodall: "2xs", Rounds: 2})
 	require.NoError(t, err)
@@ -142,7 +146,7 @@ func TestGenerateChallenge_ProducesValidOutput(t *testing.T) {
 }
 
 func TestGenerateChallenge_UnknownWoodall(t *testing.T) {
-	svc := NewCaptchaService(NewInMemoryStorage(5 * time.Minute))
+	svc := NewCaptchaService(NewInMemoryStorage(5 * time.Minute), testLogger)
 
 	_, _, err := svc.GenerateChallenge(GenerateOptions{Woodall: "nonexistent", Rounds: 2})
 	assert.Error(t, err)
@@ -151,7 +155,7 @@ func TestGenerateChallenge_UnknownWoodall(t *testing.T) {
 
 func TestGenerateChallenge_AliasResolution(t *testing.T) {
 	storage := NewInMemoryStorage(5 * time.Minute)
-	svc := NewCaptchaService(storage)
+	svc := NewCaptchaService(storage, testLogger)
 
 	id, _, err := svc.GenerateChallenge(GenerateOptions{Woodall: "2xs", Rounds: 1})
 	require.NoError(t, err)

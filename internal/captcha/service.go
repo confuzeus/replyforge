@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"strings"
 	"sync"
@@ -109,10 +110,11 @@ func (s *InMemoryStorage) Remove(key string) bool {
 
 type CaptchaService struct {
 	storage CaptchaStorage
+	logger  *slog.Logger
 }
 
-func NewCaptchaService(storage CaptchaStorage) *CaptchaService {
-	return &CaptchaService{storage: storage}
+func NewCaptchaService(storage CaptchaStorage, logger *slog.Logger) *CaptchaService {
+	return &CaptchaService{storage: storage, logger: logger}
 }
 
 func (s *CaptchaService) Stop() {
@@ -158,52 +160,93 @@ func (s *CaptchaService) GenerateChallenge(opts GenerateOptions) (string, string
 func (s *CaptchaService) Verify(ctx context.Context, captchaID, answer, clientIP string) (bool, error) {
 	stored, ok := s.storage.Get(captchaID)
 	if !ok {
+		s.logger.Warn("captcha: challenge not found in storage",
+			"captcha_id", captchaID,
+		)
 		return false, nil
 	}
 	s.storage.Remove(captchaID)
 
 	parts := strings.SplitN(stored, ",", 2)
 	if len(parts) != 2 || parts[0] != "QuadraticResidueProblem" {
+		s.logger.Warn("captcha: unexpected challenge format",
+			"captcha_id", captchaID,
+			"prefix", parts[0],
+		)
 		return false, nil
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
+		s.logger.Warn("captcha: failed to decode outer base64",
+			"captcha_id", captchaID,
+			"error", err,
+		)
 		return false, nil
 	}
 
 	inner := strings.SplitN(string(decoded), ",", 2)
 	if len(inner) != 2 {
+		s.logger.Warn("captcha: unexpected inner format",
+			"captcha_id", captchaID,
+		)
 		return false, nil
 	}
 
 	woodall, ok := resolveWoodall(inner[0])
 	if !ok {
+		s.logger.Warn("captcha: unknown woodall prime",
+			"captcha_id", captchaID,
+			"woodall", inner[0],
+		)
 		return false, nil
 	}
 
 	p := Woodalls[woodall]
 	if p == nil {
+		s.logger.Warn("captcha: woodall prime not found",
+			"captcha_id", captchaID,
+			"woodall", woodall,
+		)
 		return false, nil
 	}
 
 	challengeStrs := strings.Split(inner[1], ",")
 	answers := strings.Split(answer, ",")
 	if len(answers) != len(challengeStrs) {
+		s.logger.Warn("captcha: answer length mismatch",
+			"captcha_id", captchaID,
+			"expected_rounds", len(challengeStrs),
+			"got_rounds", len(answers),
+		)
 		return false, nil
 	}
 
 	for i := range challengeStrs {
 		expectedN, err := Base64ToBigInt(challengeStrs[i])
 		if err != nil {
+			s.logger.Warn("captcha: failed to decode challenge value",
+				"captcha_id", captchaID,
+				"round", i,
+				"error", err,
+			)
 			return false, nil
 		}
 		ans, err := Base64ToBigInt(answers[i])
 		if err != nil {
+			s.logger.Warn("captcha: failed to decode answer value",
+				"captcha_id", captchaID,
+				"round", i,
+				"error", err,
+			)
 			return false, nil
 		}
 		resultN := new(big.Int).Mod(new(big.Int).Mul(ans, ans), p)
 		if expectedN.Cmp(resultN) != 0 {
+			s.logger.Warn("captcha: square root mismatch",
+				"captcha_id", captchaID,
+				"round", i,
+			)
 			return false, nil
 		}
 	}

@@ -14,9 +14,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testCaptchaLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
 func TestCaptchaHandler_GenerateChallenge(t *testing.T) {
 	storage := captcha.NewInMemoryStorage(5 * time.Minute)
-	svc := captcha.NewCaptchaService(storage)
+	svc := captcha.NewCaptchaService(storage, testCaptchaLogger)
 
 	handler := NewCaptchaHandler(CaptchaHandlerDependencies{
 		Service:        svc,
@@ -39,7 +41,7 @@ func TestCaptchaHandler_GenerateChallenge(t *testing.T) {
 
 func TestCaptchaHandler_GenerateChallenge_CustomParams(t *testing.T) {
 	storage := captcha.NewInMemoryStorage(5 * time.Minute)
-	svc := captcha.NewCaptchaService(storage)
+	svc := captcha.NewCaptchaService(storage, testCaptchaLogger)
 
 	handler := NewCaptchaHandler(CaptchaHandlerDependencies{
 		Service:        svc,
@@ -61,7 +63,7 @@ func TestCaptchaHandler_GenerateChallenge_CustomParams(t *testing.T) {
 
 func TestCaptchaHandler_GenerateChallenge_InvalidWoodall(t *testing.T) {
 	storage := captcha.NewInMemoryStorage(5 * time.Minute)
-	svc := captcha.NewCaptchaService(storage)
+	svc := captcha.NewCaptchaService(storage, testCaptchaLogger)
 
 	handler := NewCaptchaHandler(CaptchaHandlerDependencies{
 		Service:        svc,
@@ -79,7 +81,7 @@ func TestCaptchaHandler_GenerateChallenge_InvalidWoodall(t *testing.T) {
 
 func TestCaptchaHandler_GenerateChallenge_InvalidRounds(t *testing.T) {
 	storage := captcha.NewInMemoryStorage(5 * time.Minute)
-	svc := captcha.NewCaptchaService(storage)
+	svc := captcha.NewCaptchaService(storage, testCaptchaLogger)
 
 	handler := NewCaptchaHandler(CaptchaHandlerDependencies{
 		Service:        svc,

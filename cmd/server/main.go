@@ -68,7 +68,7 @@ func main() {
 	var captchaVerifier service.CaptchaVerifier
 	if cfg.CaptchaProvider == "pcaptcha" {
 		storage := captcha.NewInMemoryStorage(10 * time.Minute)
-		captchaVerifier = captcha.NewCaptchaService(storage)
+		captchaVerifier = captcha.NewCaptchaService(storage, logger)
 	} else {
 		captchaVerifier = service.NewTurnstileVerifier(cfg.TurnstileSecretKey)
 	}

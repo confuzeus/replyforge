@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	"strings"
 )
 
 func BigIntToBase64(n *big.Int) string {
@@ -15,6 +16,7 @@ func BigIntToBase64(n *big.Int) string {
 }
 
 func Base64ToBigInt(s string) (*big.Int, error) {
+	s = strings.TrimRight(s, "=")
 	if s == "" {
 		return nil, fmt.Errorf("captcha: empty base64 string")
 	}

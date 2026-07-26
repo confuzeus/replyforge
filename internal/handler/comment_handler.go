@@ -13,22 +13,19 @@ import (
 )
 
 type CommentHandler struct {
-	service         *service.CommentService
-	logger          *slog.Logger
-	captchaProvider string
+	service *service.CommentService
+	logger  *slog.Logger
 }
 
 type HandlerDependencies struct {
-	Service         *service.CommentService
-	Logger          *slog.Logger
-	CaptchaProvider string
+	Service *service.CommentService
+	Logger  *slog.Logger
 }
 
 func NewCommentHandler(deps HandlerDependencies) *CommentHandler {
 	return &CommentHandler{
-		service:         deps.Service,
-		logger:          deps.Logger,
-		captchaProvider: deps.CaptchaProvider,
+		service: deps.Service,
+		logger:  deps.Logger,
 	}
 }
 
@@ -53,28 +50,11 @@ func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	clientIP := middleware.ExtractClientIP(r)
 
-	var captchaID, captchaAnswer string
-	if h.captchaProvider == "pcaptcha" {
-		if req.CaptchaID == "" || req.CaptchaAnswer == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "captcha_id and captcha_answer are required", nil)
-			return
-		}
-		captchaID = req.CaptchaID
-		captchaAnswer = req.CaptchaAnswer
-	} else {
-		if req.TurnstileToken == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "turnstile_token is required", nil)
-			return
-		}
-		captchaAnswer = req.TurnstileToken
-	}
-
 	input := service.CreateInput{
 		PostID:        req.PostID,
 		AuthorName:    req.AuthorName,
 		Body:          req.Body,
-		CaptchaID:     captchaID,
-		CaptchaAnswer: captchaAnswer,
+		CaptchaAnswer: req.TurnstileToken,
 		ClientIP:      clientIP,
 		UserAgent:     r.UserAgent(),
 	}

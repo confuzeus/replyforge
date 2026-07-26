@@ -108,11 +108,11 @@ func TestFindByID_Found(t *testing.T) {
 
 	now := time.Now().Truncate(time.Second)
 	c := &Comment{
-		PostID:            "post-1",
-		AuthorName:        "Dave",
-		Body:              "Full comment body",
-		IPAddress:         "192.168.1.1",
-		UserAgent:         "Firefox",
+		PostID:          "post-1",
+		AuthorName:      "Dave",
+		Body:            "Full comment body",
+		IPAddress:       "192.168.1.1",
+		UserAgent:       "Firefox",
 		CaptchaVerified: true,
 	}
 
@@ -151,12 +151,12 @@ func TestFindApproved_AllApproved(t *testing.T) {
 
 	for i, approved := range []bool{true, true, true, false} {
 		c := &Comment{
-			PostID:            "post-1",
-			AuthorName:        "User",
-			Body:              "Comment",
-			IPAddress:         "127.0.0.1",
-			UserAgent:         "test",
-			Approved:          approved,
+			PostID:          "post-1",
+			AuthorName:      "User",
+			Body:            "Comment",
+			IPAddress:       "127.0.0.1",
+			UserAgent:       "test",
+			Approved:        approved,
 			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
@@ -178,12 +178,12 @@ func TestFindApproved_FilterByPost(t *testing.T) {
 
 	for _, postID := range []string{"post-a", "post-a", "post-b"} {
 		c := &Comment{
-			PostID:            postID,
-			AuthorName:        "User",
-			Body:              "Comment",
-			IPAddress:         "127.0.0.1",
-			UserAgent:         "test",
-			Approved:          true,
+			PostID:          postID,
+			AuthorName:      "User",
+			Body:            "Comment",
+			IPAddress:       "127.0.0.1",
+			UserAgent:       "test",
+			Approved:        true,
 			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
@@ -208,12 +208,12 @@ func TestFindApproved_Pagination(t *testing.T) {
 
 	for i := 0; i < 25; i++ {
 		c := &Comment{
-			PostID:            "post-1",
-			AuthorName:        "User",
-			Body:              "Comment",
-			IPAddress:         "127.0.0.1",
-			UserAgent:         "test",
-			Approved:          true,
+			PostID:          "post-1",
+			AuthorName:      "User",
+			Body:            "Comment",
+			IPAddress:       "127.0.0.1",
+			UserAgent:       "test",
+			Approved:        true,
 			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
@@ -306,12 +306,12 @@ func TestFindApproved_EdgeCaseParams(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		seedComment(t, db, &Comment{
-			PostID:            "post-1",
-			AuthorName:        "User",
-			Body:              "Comment",
-			IPAddress:         "127.0.0.1",
-			UserAgent:         "test",
-			Approved:          true,
+			PostID:          "post-1",
+			AuthorName:      "User",
+			Body:            "Comment",
+			IPAddress:       "127.0.0.1",
+			UserAgent:       "test",
+			Approved:        true,
 			CaptchaVerified: true,
 		})
 	}
@@ -360,12 +360,12 @@ func TestFindApproved_ContextCanceled(t *testing.T) {
 	repo := NewCommentRepository(db)
 
 	seedComment(t, db, &Comment{
-		PostID:            "post-1",
-		AuthorName:        "User",
-		Body:              "Comment",
-		IPAddress:         "127.0.0.1",
-		UserAgent:         "test",
-		Approved:          true,
+		PostID:          "post-1",
+		AuthorName:      "User",
+		Body:            "Comment",
+		IPAddress:       "127.0.0.1",
+		UserAgent:       "test",
+		Approved:        true,
 		CaptchaVerified: true,
 	})
 
@@ -393,12 +393,12 @@ func TestFindAll_AllComments(t *testing.T) {
 
 	for i, approved := range []bool{true, false, true, false} {
 		c := &Comment{
-			PostID:            "post-1",
-			AuthorName:        "User",
-			Body:              "Comment",
-			IPAddress:         "127.0.0.1",
-			UserAgent:         "test",
-			Approved:          approved,
+			PostID:          "post-1",
+			AuthorName:      "User",
+			Body:            "Comment",
+			IPAddress:       "127.0.0.1",
+			UserAgent:       "test",
+			Approved:        approved,
 			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
@@ -420,12 +420,12 @@ func TestFindAll_FilterByPost(t *testing.T) {
 
 	for _, postID := range []string{"post-a", "post-a", "post-b"} {
 		c := &Comment{
-			PostID:            postID,
-			AuthorName:        "User",
-			Body:              "Comment",
-			IPAddress:         "127.0.0.1",
-			UserAgent:         "test",
-			Approved:          true,
+			PostID:          postID,
+			AuthorName:      "User",
+			Body:            "Comment",
+			IPAddress:       "127.0.0.1",
+			UserAgent:       "test",
+			Approved:        true,
 			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)
@@ -450,12 +450,12 @@ func TestFindAll_Pagination(t *testing.T) {
 
 	for i := 0; i < 25; i++ {
 		c := &Comment{
-			PostID:            "post-1",
-			AuthorName:        "User",
-			Body:              "Comment",
-			IPAddress:         "127.0.0.1",
-			UserAgent:         "test",
-			Approved:          true,
+			PostID:          "post-1",
+			AuthorName:      "User",
+			Body:            "Comment",
+			IPAddress:       "127.0.0.1",
+			UserAgent:       "test",
+			Approved:        true,
 			CaptchaVerified: true,
 		}
 		seedComment(t, db, c)

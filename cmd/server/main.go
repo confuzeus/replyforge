@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"expvar"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/confuzeus/replyforge/internal/auth"
-	"github.com/confuzeus/replyforge/internal/captcha"
 	"github.com/confuzeus/replyforge/internal/config"
 	"github.com/confuzeus/replyforge/internal/handler"
 	"github.com/confuzeus/replyforge/internal/middleware"
@@ -41,13 +39,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if cfg.CaptchaProvider == "pcaptcha" {
-		if _, ok := captcha.WoodallAliases[cfg.CaptchaWoodall]; !ok {
-			logger.Error("invalid configuration", "error", fmt.Sprintf("unknown CAPTCHA_WOODALL: %s", cfg.CaptchaWoodall))
-			os.Exit(1)
-		}
-	}
-
 	db, err := sql.Open("sqlite3", cfg.DatabasePath+"?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on")
 	if err != nil {
 		logger.Error("failed to open database", "error", err)
@@ -65,13 +56,7 @@ func main() {
 	displayIDGen := model.NewDisplayIDGenerator()
 	inputSanitizer := sanitizer.NewSanitizer()
 
-	var captchaVerifier service.CaptchaVerifier
-	if cfg.CaptchaProvider == "pcaptcha" {
-		storage := captcha.NewInMemoryStorage(10 * time.Minute)
-		captchaVerifier = captcha.NewCaptchaService(storage, logger)
-	} else {
-		captchaVerifier = service.NewTurnstileVerifier(cfg.TurnstileSecretKey)
-	}
+	captchaVerifier := service.NewTurnstileVerifier(cfg.TurnstileSecretKey)
 
 	emailNotifier := service.NewEmailNotifier(
 		cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword,
@@ -91,9 +76,8 @@ func main() {
 	})
 
 	commentHandler := handler.NewCommentHandler(handler.HandlerDependencies{
-		Service:         commentService,
-		Logger:          logger,
-		CaptchaProvider: cfg.CaptchaProvider,
+		Service: commentService,
+		Logger:  logger,
 	})
 
 	sessionManager := auth.NewSessionManager(cfg.AdminSessionTTL, cfg.AdminSessionSecure)
@@ -110,23 +94,6 @@ func main() {
 	mux := http.NewServeMux()
 	commentHandler.RegisterRoutes(mux)
 	adminHandler.RegisterRoutes(mux)
-
-	var captchaSvc *captcha.CaptchaService
-	if cfg.CaptchaProvider == "pcaptcha" {
-		var ok bool
-		captchaSvc, ok = captchaVerifier.(*captcha.CaptchaService)
-		if !ok {
-			logger.Error("internal error: captchaVerifier is not *CaptchaService")
-			os.Exit(1)
-		}
-		captchaHandler := handler.NewCaptchaHandler(handler.CaptchaHandlerDependencies{
-			Service:        captchaSvc,
-			Logger:         logger,
-			DefaultWoodall: cfg.CaptchaWoodall,
-			DefaultRounds:  cfg.CaptchaRounds,
-		})
-		captchaHandler.RegisterRoutes(mux)
-	}
 
 	corsCfg := middleware.NewCORSConfig(cfg.AllowedOrigins)
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPM, cfg.RateLimitBurst, logger)
@@ -188,9 +155,6 @@ func main() {
 		}
 		rateLimiter.Stop()
 		sessionManager.Stop()
-		if captchaSvc != nil {
-			captchaSvc.Stop()
-		}
 		close(shutdownDone)
 	}()
 

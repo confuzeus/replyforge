@@ -48,11 +48,11 @@ func seedUnapproved(t *testing.T, db *sql.DB) *repository.Comment {
 	t.Helper()
 	repo := repository.NewCommentRepository(db)
 	c := &repository.Comment{
-		PostID:            "post-1",
-		AuthorName:        "Unapproved",
-		Body:              "Not approved yet",
-		IPAddress:         "127.0.0.1",
-		UserAgent:         "test-agent",
+		PostID:          "post-1",
+		AuthorName:      "Unapproved",
+		Body:            "Not approved yet",
+		IPAddress:       "127.0.0.1",
+		UserAgent:       "test-agent",
 		CaptchaVerified: true,
 	}
 	id, err := repo.Insert(context.Background(), c)

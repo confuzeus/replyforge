@@ -15,7 +15,7 @@ import (
 )
 
 type CaptchaVerifier interface {
-	Verify(ctx context.Context, captchaID, answer, clientIP string) (bool, error)
+	Verify(ctx context.Context, answer, clientIP string) (bool, error)
 }
 
 type emailNotifier interface {
@@ -45,7 +45,6 @@ type CreateInput struct {
 	PostID        string
 	AuthorName    string
 	Body          string
-	CaptchaID     string
 	CaptchaAnswer string
 	ClientIP      string
 	UserAgent     string
@@ -98,7 +97,7 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 	authorName := s.sanitizer.Sanitize(input.AuthorName)
 	body := s.sanitizer.Sanitize(input.Body)
 
-	ok, err := s.captcha.Verify(ctx, input.CaptchaID, input.CaptchaAnswer, input.ClientIP)
+	ok, err := s.captcha.Verify(ctx, input.CaptchaAnswer, input.ClientIP)
 	middleware.CaptchaVerificationsTotal.Add(1)
 	if err != nil {
 		middleware.CaptchaFailedTotal.Add(1)
@@ -112,12 +111,12 @@ func (s *CommentService) Create(ctx context.Context, input CreateInput) (*model.
 	}
 
 	comment := &repository.Comment{
-		PostID:            input.PostID,
-		AuthorName:        authorName,
-		Body:              body,
-		Approved:          false,
-		IPAddress:         input.ClientIP,
-		UserAgent:         input.UserAgent,
+		PostID:          input.PostID,
+		AuthorName:      authorName,
+		Body:            body,
+		Approved:        false,
+		IPAddress:       input.ClientIP,
+		UserAgent:       input.UserAgent,
 		CaptchaVerified: true,
 	}
 

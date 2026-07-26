@@ -25,7 +25,7 @@ type stubCaptchaVerifier struct {
 	err error
 }
 
-func (s *stubCaptchaVerifier) Verify(_ context.Context, _, _, _ string) (bool, error) {
+func (s *stubCaptchaVerifier) Verify(_ context.Context, _, _ string) (bool, error) {
 	return s.ok, s.err
 }
 
@@ -65,13 +65,13 @@ func seedApprovedComment(t *testing.T, db *sql.DB, postID, authorName, body stri
 	t.Helper()
 	repo := repository.NewCommentRepository(db)
 	c := &repository.Comment{
-		PostID:            postID,
-		AuthorName:        authorName,
-		Body:              body,
-		Approved:          true,
+		PostID:          postID,
+		AuthorName:      authorName,
+		Body:            body,
+		Approved:        true,
 		CaptchaVerified: true,
-		IPAddress:         "127.0.0.1",
-		UserAgent:         "test-agent",
+		IPAddress:       "127.0.0.1",
+		UserAgent:       "test-agent",
 	}
 	id, err := repo.Insert(context.Background(), c)
 	require.NoError(t, err)

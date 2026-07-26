@@ -109,7 +109,7 @@ func TestLoadFromEnv(t *testing.T) {
 }
 
 func TestValidateRejectsEmptySecretKey(t *testing.T) {
-	cfg := &Config{CaptchaProvider: "turnstile", TurnstileSecretKey: ""}
+	cfg := &Config{TurnstileSecretKey: ""}
 	err := cfg.Validate()
 	if err == nil {
 		t.Error("expected error for empty TURNSTILE_SECRET_KEY, got nil")
@@ -117,41 +117,9 @@ func TestValidateRejectsEmptySecretKey(t *testing.T) {
 }
 
 func TestValidatePassesWithSecretKey(t *testing.T) {
-	cfg := &Config{CaptchaProvider: "turnstile", TurnstileSecretKey: "not-empty"}
+	cfg := &Config{TurnstileSecretKey: "not-empty"}
 	err := cfg.Validate()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-func TestValidate_PCaptchaNoSecretKey(t *testing.T) {
-	cfg := &Config{CaptchaProvider: "pcaptcha", TurnstileSecretKey: ""}
-	err := cfg.Validate()
-	if err != nil {
-		t.Errorf("expected pcaptcha to not require TURNSTILE_SECRET_KEY, got: %v", err)
-	}
-}
-
-func TestValidate_InvalidProvider(t *testing.T) {
-	cfg := &Config{CaptchaProvider: "bogus"}
-	err := cfg.Validate()
-	if err == nil {
-		t.Error("expected error for invalid CAPTCHA_PROVIDER, got nil")
-	}
-}
-
-func TestLoad_PCaptchaDefaults(t *testing.T) {
-	os.Setenv("CAPTCHA_PROVIDER", "pcaptcha")
-	defer os.Unsetenv("CAPTCHA_PROVIDER")
-
-	cfg := Load()
-	if cfg.CaptchaProvider != "pcaptcha" {
-		t.Errorf("CaptchaProvider = %q, want %q", cfg.CaptchaProvider, "pcaptcha")
-	}
-	if cfg.CaptchaWoodall != "md" {
-		t.Errorf("CaptchaWoodall = %q, want %q", cfg.CaptchaWoodall, "md")
-	}
-	if cfg.CaptchaRounds != 2 {
-		t.Errorf("CaptchaRounds = %d, want 2", cfg.CaptchaRounds)
 	}
 }

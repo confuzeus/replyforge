@@ -28,10 +28,6 @@ type Config struct {
 	AdminSessionTTL    time.Duration
 	AdminSessionSecure bool
 
-	CaptchaProvider string
-	CaptchaWoodall  string
-	CaptchaRounds   int
-
 	SMTPHost     string
 	SMTPPort     int
 	SMTPUsername string
@@ -64,10 +60,6 @@ func Load() *Config {
 		AdminSessionTTL:    envOrDefaultDuration("ADMIN_SESSION_TTL", 24*time.Hour),
 		AdminSessionSecure: envOrDefaultBool("ADMIN_SESSION_SECURE", true),
 
-		CaptchaProvider: envOrDefault("CAPTCHA_PROVIDER", "turnstile"),
-		CaptchaWoodall:  envOrDefault("CAPTCHA_WOODALL", "md"),
-		CaptchaRounds:   envOrDefaultInt("CAPTCHA_ROUNDS", 2),
-
 		SMTPHost:     os.Getenv("SMTP_HOST"),
 		SMTPPort:     envOrDefaultInt("SMTP_PORT", 587),
 		SMTPUsername: os.Getenv("SMTP_USERNAME"),
@@ -80,11 +72,8 @@ func Load() *Config {
 }
 
 func (c *Config) Validate() error {
-	if c.CaptchaProvider != "turnstile" && c.CaptchaProvider != "pcaptcha" {
-		return fmt.Errorf("CAPTCHA_PROVIDER must be 'turnstile' or 'pcaptcha', got: %s", c.CaptchaProvider)
-	}
-	if c.CaptchaProvider == "turnstile" && c.TurnstileSecretKey == "" {
-		return fmt.Errorf("TURNSTILE_SECRET_KEY is required when CAPTCHA_PROVIDER=turnstile")
+	if c.TurnstileSecretKey == "" {
+		return fmt.Errorf("TURNSTILE_SECRET_KEY is required")
 	}
 	return nil
 }

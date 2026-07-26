@@ -164,12 +164,12 @@ func main() {
 		createdAtStr := createdAt.UTC().Format(time.RFC3339)
 
 		comment := &repository.Comment{
-			PostID:            postIDs[rng.Intn(len(postIDs))],
-			AuthorName:        san.Sanitize(authorNames[rng.Intn(len(authorNames))]),
-			Body:              san.Sanitize(bodies[rng.Intn(len(bodies))]),
-			Approved:          rng.Float64() < 0.8,
-			IPAddress:         ips[rng.Intn(len(ips))],
-			UserAgent:         userAgents[rng.Intn(len(userAgents))],
+			PostID:          postIDs[rng.Intn(len(postIDs))],
+			AuthorName:      san.Sanitize(authorNames[rng.Intn(len(authorNames))]),
+			Body:            san.Sanitize(bodies[rng.Intn(len(bodies))]),
+			Approved:        rng.Float64() < 0.8,
+			IPAddress:       ips[rng.Intn(len(ips))],
+			UserAgent:       userAgents[rng.Intn(len(userAgents))],
 			CaptchaVerified: rng.Float64() < 0.9,
 		}
 

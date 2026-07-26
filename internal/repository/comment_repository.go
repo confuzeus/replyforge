@@ -8,17 +8,17 @@ import (
 )
 
 type Comment struct {
-	ID                int64
-	DisplayID         string
-	PostID            string
-	AuthorName        string
-	Body              string
-	Approved          bool
-	IPAddress         string
-	UserAgent         string
+	ID              int64
+	DisplayID       string
+	PostID          string
+	AuthorName      string
+	Body            string
+	Approved        bool
+	IPAddress       string
+	UserAgent       string
 	CaptchaVerified bool
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type QueryParams struct {

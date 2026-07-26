@@ -153,7 +153,7 @@ func TestCreateCommentRequest_Validate(t *testing.T) {
 				TurnstileToken: "",
 			},
 			wantErr:   true,
-			errFields: []string{"post_id", "author_name", "body"},
+			errFields: []string{"post_id", "author_name", "body", "turnstile_token"},
 		},
 		{
 			name: "post_id exceeds max length",
@@ -227,7 +227,7 @@ func TestCreateCommentRequest_Validate(t *testing.T) {
 				TurnstileToken: "",
 			},
 			wantErr:   true,
-			errFields: []string{"post_id", "author_name", "body"},
+			errFields: []string{"post_id", "author_name", "body", "turnstile_token"},
 		},
 		{
 			name: "multiple fields over limit",

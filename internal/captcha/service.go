@@ -242,6 +242,14 @@ func (s *CaptchaService) Verify(ctx context.Context, captchaID, answer, clientIP
 			return false, nil
 		}
 		resultN := new(big.Int).Mod(new(big.Int).Mul(ans, ans), p)
+		s.logger.Debug("captcha: verifying round",
+			"captcha_id", captchaID,
+			"round", i,
+			"p_bits", p.BitLen(),
+			"expectedN", expectedN.String(),
+			"ans", ans.String(),
+			"resultN", resultN.String(),
+		)
 		if expectedN.Cmp(resultN) != 0 {
 			s.logger.Warn("captcha: square root mismatch",
 				"captcha_id", captchaID,

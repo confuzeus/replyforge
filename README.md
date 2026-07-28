@@ -8,6 +8,8 @@ A REST API service for managing blog comments with anti-spam protection via Clou
 
 Readers submit comments through a captcha-protected API endpoint. Comments are created in an unapproved state and stored in SQLite. Approved comments are served publicly via read-only endpoints. An admin interface at `/admin` allows moderators to review, approve, and delete comments. Email notifications can be sent to the admin when new comments arrive.
 
+[Demo available here.](https://replyforge-demo.joshkaramuth.com)
+
 ## Quick Start
 
 1. **Generate an admin password hash:**
@@ -80,37 +82,37 @@ Read the [full deployment guide](https://replyforge.joshkaramuth.com/deploy-uncl
 
 Configuration is loaded from environment variables. Copy `.env.example` to `.env` and adjust as needed.
 
-| Variable               | Default                    | Description                                                                     |
-| ---------------------- | -------------------------- | ------------------------------------------------------------------------------- |
-| `PORT`                 | `8080`                     | Server listen port                                                              |
-| `DATABASE_PATH`        | `data/comments.db`         | SQLite database file path                                                       |
-| `LOG_LEVEL`            | `info`                     | Log level: `debug`, `info`, `warn`, `error`                                     |
-| `TURNSTILE_SECRET_KEY` | _(required)_               | Cloudflare Turnstile secret key                                                  |
-| `ALLOWED_ORIGINS`      | `*`                        | Comma-separated CORS origins                                                    |
-| `RATE_LIMIT_RPM`       | `10`                       | Rate limit requests per minute per IP                                           |
-| `RATE_LIMIT_BURST`     | `15`                       | Rate limit burst capacity                                                       |
-| `READ_TIMEOUT`         | `10s`                      | HTTP read timeout                                                               |
-| `WRITE_TIMEOUT`        | `10s`                      | HTTP write timeout                                                              |
-| `IDLE_TIMEOUT`         | `60s`                      | HTTP idle timeout                                                               |
-| `SHUTDOWN_TIMEOUT`     | `30s`                      | Graceful shutdown deadline                                                      |
-| `VERSION`              | `dev`                      | Version string reported in health checks                                        |
-| `ADMIN_PASSWORD_HASH`  | _(not set)_                | Argon2id PHC hash for the admin password                                        |
-| `SMTP_HOST`            | _(not set)_                | SMTP server hostname (empty = disabled)                                         |
-| `SMTP_PORT`            | `587`                      | SMTP server port                                                                |
-| `SMTP_USERNAME`        | _(not set)_                | SMTP username for PLAIN auth                                                    |
-| `SMTP_PASSWORD`        | _(not set)_                | SMTP password for PLAIN auth                                                    |
-| `SMTP_FROM`            | _(not set)_                | Sender email address for notifications                                          |
-| `SMTP_TO`              | _(not set)_                | Recipient email address for notifications                                       |
+| Variable               | Default            | Description                                 |
+| ---------------------- | ------------------ | ------------------------------------------- |
+| `PORT`                 | `8080`             | Server listen port                          |
+| `DATABASE_PATH`        | `data/comments.db` | SQLite database file path                   |
+| `LOG_LEVEL`            | `info`             | Log level: `debug`, `info`, `warn`, `error` |
+| `TURNSTILE_SECRET_KEY` | _(required)_       | Cloudflare Turnstile secret key             |
+| `ALLOWED_ORIGINS`      | `*`                | Comma-separated CORS origins                |
+| `RATE_LIMIT_RPM`       | `10`               | Rate limit requests per minute per IP       |
+| `RATE_LIMIT_BURST`     | `15`               | Rate limit burst capacity                   |
+| `READ_TIMEOUT`         | `10s`              | HTTP read timeout                           |
+| `WRITE_TIMEOUT`        | `10s`              | HTTP write timeout                          |
+| `IDLE_TIMEOUT`         | `60s`              | HTTP idle timeout                           |
+| `SHUTDOWN_TIMEOUT`     | `30s`              | Graceful shutdown deadline                  |
+| `VERSION`              | `dev`              | Version string reported in health checks    |
+| `ADMIN_PASSWORD_HASH`  | _(not set)_        | Argon2id PHC hash for the admin password    |
+| `SMTP_HOST`            | _(not set)_        | SMTP server hostname (empty = disabled)     |
+| `SMTP_PORT`            | `587`              | SMTP server port                            |
+| `SMTP_USERNAME`        | _(not set)_        | SMTP username for PLAIN auth                |
+| `SMTP_PASSWORD`        | _(not set)_        | SMTP password for PLAIN auth                |
+| `SMTP_FROM`            | _(not set)_        | Sender email address for notifications      |
+| `SMTP_TO`              | _(not set)_        | Recipient email address for notifications   |
 
 ## API Endpoints
 
-| Method | Path                        | Description                                                                          |
-| ------ | --------------------------- | ------------------------------------------------------------------------------------ |
-| `POST` | `/api/v1/comments`          | Create a comment                                                                     |
-| `GET`  | `/api/v1/comments`          | List approved comments                                                               |
-| `GET`  | `/api/v1/comments/{id}`     | Get a comment by ID                                                                  |
-| `GET`  | `/health`                   | Health check with database status                                                    |
-| `GET`  | `/debug/vars`               | Runtime metrics (expvar)                                                             |
+| Method | Path                    | Description                       |
+| ------ | ----------------------- | --------------------------------- |
+| `POST` | `/api/v1/comments`      | Create a comment                  |
+| `GET`  | `/api/v1/comments`      | List approved comments            |
+| `GET`  | `/api/v1/comments/{id}` | Get a comment by ID               |
+| `GET`  | `/health`               | Health check with database status |
+| `GET`  | `/debug/vars`           | Runtime metrics (expvar)          |
 
 ## Client API Reference
 
@@ -154,12 +156,12 @@ POST /api/v1/comments
 }
 ```
 
-| Field             | Type   | Max Length | Required       | Description                                                      |
-| ----------------- | ------ | ---------- | -------------- | ---------------------------------------------------------------- |
-| `post_id`         | string | 100        | yes            | Identifies which post the comment belongs to. Free-form string.  |
-| `author_name`     | string | 100        | yes            | Display name of the commenter. Stripped of all HTML tags.        |
-| `body`            | string | 5000       | yes            | Comment text. Stripped of all HTML tags.                         |
-| `turnstile_token` | string | —          | yes            | Cloudflare Turnstile client-side token obtained from the widget. |
+| Field             | Type   | Max Length | Required | Description                                                      |
+| ----------------- | ------ | ---------- | -------- | ---------------------------------------------------------------- |
+| `post_id`         | string | 100        | yes      | Identifies which post the comment belongs to. Free-form string.  |
+| `author_name`     | string | 100        | yes      | Display name of the commenter. Stripped of all HTML tags.        |
+| `body`            | string | 5000       | yes      | Comment text. Stripped of all HTML tags.                         |
+| `turnstile_token` | string | —          | yes      | Cloudflare Turnstile client-side token obtained from the widget. |
 
 **Validation rules:**
 

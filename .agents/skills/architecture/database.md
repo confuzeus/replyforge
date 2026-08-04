@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS comments (
     approved INTEGER NOT NULL DEFAULT 0,
     ip_address TEXT NOT NULL,
     user_agent TEXT DEFAULT '',
-    turnstile_verified INTEGER NOT NULL DEFAULT 0,
+    captcha_verified INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -50,7 +50,7 @@ ON comments(post_id, approved, created_at DESC);
 - `display_id` is generated from the `id` value using Sqids
 - `approved` defaults to 0 (false) - all comments require moderation or approval logic
 - `ip_address` and `user_agent` are stored for abuse prevention, never returned in API responses
-- `turnstile_verified` tracks whether Cloudflare verification passed
+- `captcha_verified` tracks whether Cloudflare verification passed
 - The composite index on `(post_id, approved, created_at DESC)` optimizes the most common query pattern
 
 ### Display ID Generation

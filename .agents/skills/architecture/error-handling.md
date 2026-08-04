@@ -81,6 +81,6 @@ slog.Info("comment created",
     "display_id", comment.DisplayID,
     "post_id", comment.PostID,
     "duration_ms", duration.Milliseconds(),
-    "turnstile_verified", true,
+    "captcha_verified", true,
 )
 ```

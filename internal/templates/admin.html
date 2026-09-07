@@ -43,6 +43,12 @@ tr:hover { background: #f9f9f9; }
 .result-item .label { font-weight: 600; color: #555; margin-right: 0.5rem; }
 .empty { text-align: center; color: #888; padding: 3rem 1rem; font-size: 0.9rem; }
 .loading { text-align: center; color: #888; padding: 2rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: #fff; border-radius: 8px; max-width: 640px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 1.5rem; margin: 1rem; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.modal-header h2 { font-size: 1.1rem; }
+.modal-body .label { font-weight: 600; color: #555; margin-right: 0.5rem; }
+.modal-body .result-item { white-space: pre-wrap; word-break: break-word; }
 </style>
 </head>
 <body>
@@ -136,6 +142,7 @@ tr:hover { background: #f9f9f9; }
                   <td x-text="excerpt(item.body)"></td>
                   <td>
                     <div style="display: flex; gap: 0.25rem;">
+                      <button class="btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;" @click="openModal(item)">View</button>
                       <button class="btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;"
                         :class="{ active: !item.approved }"
                         x-text="item.approved ? 'Reject' : 'Approve'"
@@ -158,6 +165,26 @@ tr:hover { background: #f9f9f9; }
             <button :disabled="listPage <= 1" @click="listPage--; listComments()">Previous</button>
             <span x-text="'Page ' + listPage + ' of ' + listTotalPages + ' (' + listTotal + ' total)'"></span>
             <button :disabled="listPage >= listTotalPages" @click="listPage++; listComments()">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- View Comment Modal -->
+      <div class="modal-overlay" x-show="view === 'list' && modalComment" x-transition.opacity
+           @click.self="closeModal()" @keydown.escape.window="closeModal()">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>Comment #<span x-text="modalComment.id"></span></h2>
+            <button class="btn" @click="closeModal()">Close</button>
+          </div>
+          <div class="modal-body">
+            <div class="result-item"><span class="label">ID:</span> <span x-text="modalComment.id"></span></div>
+            <div class="result-item"><span class="label">Display ID:</span> <span x-text="modalComment.display_id"></span></div>
+            <div class="result-item"><span class="label">Post ID:</span> <span x-text="modalComment.post_id"></span></div>
+            <div class="result-item"><span class="label">Author:</span> <span x-text="modalComment.author_name"></span></div>
+            <div class="result-item"><span class="label">Approved:</span> <span x-text="modalComment.approved ? 'Yes' : 'No'"></span></div>
+            <div class="result-item"><span class="label">Created:</span> <span x-text="formatDate(modalComment.created_at)"></span></div>
+            <div class="result-item"><span class="label">Body:</span> <span x-text="modalComment.body"></span></div>
           </div>
         </div>
       </div>
@@ -247,6 +274,7 @@ function adminApp() {
           this.view = 'get';
           this.result = null;
           this.listData = [];
+          this.modalComment = null;
           this.error = 'Session expired. Please log in again.';
           throw new Error('Unauthorized');
         }
@@ -300,6 +328,7 @@ function adminApp() {
       this.loginPassword = '';
       this.result = null;
       this.listData = [];
+      this.modalComment = null;
       this.view = 'get';
     },
 
@@ -429,6 +458,16 @@ function adminApp() {
       } finally {
         this.deleteInProgressID = null;
       }
+    },
+
+    modalComment: null,
+
+    openModal(item) {
+      this.modalComment = item;
+    },
+
+    closeModal() {
+      this.modalComment = null;
     },
 
     excerpt(text) {
